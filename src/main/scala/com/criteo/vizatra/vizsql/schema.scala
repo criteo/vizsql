@@ -58,7 +58,10 @@ object DB {
       while(rs.next()) {
         val row = HashMap.empty[String,Any]
         (1 to rs.getMetaData.getColumnCount).foreach { i =>
-          row.put(rs.getMetaData.getColumnLabel(i).toLowerCase, rs.getObject(i).asInstanceOf[Any])
+          rs.getObject(i).asInstanceOf[Any] match {
+            case null =>
+            case x => row.put(rs.getMetaData.getColumnLabel(i).toLowerCase, x)
+          }
         }
         data += row
       }
