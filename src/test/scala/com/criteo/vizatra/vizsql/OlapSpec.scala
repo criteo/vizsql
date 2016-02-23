@@ -501,7 +501,8 @@ class OlapSpec extends FlatSpec with Matchers with EitherValues {
       ("tac", Some(
         SumPostAggregate(
           FunctionCallExpression("sum", args = List(
-            MultiplyExpression(
+            MathExpression(
+              "*",
               ColumnExpression(ColumnIdent("tac_euro", None)),
               ColumnExpression(ColumnIdent("rate", Some(TableIdent("r", None))))
             )

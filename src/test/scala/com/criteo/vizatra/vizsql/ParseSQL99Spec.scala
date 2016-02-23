@@ -138,7 +138,8 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
     ("""Select 1 + 3""", Select(
       projections = List(
         ExpressionProjection(
-          AddExpression(
+          MathExpression(
+            "+",
             LiteralExpression(IntegerLiteral(1)),
             LiteralExpression(IntegerLiteral(3))
           )
@@ -149,7 +150,8 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
     ("""Select 2 * 5""", Select(
       projections = List(
         ExpressionProjection(
-          MultiplyExpression(
+          MathExpression(
+            "*",
             LiteralExpression(IntegerLiteral(2)),
             LiteralExpression(IntegerLiteral(5))
           )
@@ -160,11 +162,14 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
     ("""Select 8 + 2 * -5""", Select(
       projections = List(
         ExpressionProjection(
-          AddExpression(
+          MathExpression(
+            "+",
             LiteralExpression(IntegerLiteral(8)),
-            MultiplyExpression(
+            MathExpression(
+              "*",
               LiteralExpression(IntegerLiteral(2)),
-              UnaryMinusExpression(
+              UnaryMathExpression(
+                "-",
                 LiteralExpression(IntegerLiteral(5))
               )
             )
@@ -176,9 +181,11 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
     ("""Select (8 + 2) * 5""", Select(
       projections = List(
         ExpressionProjection(
-          MultiplyExpression(
+          MathExpression(
+            "*",
             ParenthesedExpression(
-              AddExpression(
+              MathExpression(
+                "+",
                 LiteralExpression(IntegerLiteral(8)),
                 LiteralExpression(IntegerLiteral(2))
               )
@@ -193,12 +200,15 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       projections = List(
         AllColumns,
         ExpressionProjection(
-          AddExpression(
-            UnaryMinusExpression(
+          MathExpression(
+            "+",
+            UnaryMathExpression(
+              "-",
               LiteralExpression(IntegerLiteral(8))
             ),
             ParenthesedExpression(
-              MultiplyExpression(
+              MathExpression(
+                "*",
                 LiteralExpression(IntegerLiteral(2)),
                 LiteralExpression(IntegerLiteral(5))
               )
@@ -208,7 +218,8 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
         ),
         ExpressionProjection(
           ParenthesedExpression(
-            AddExpression(
+            MathExpression(
+              "+",
               ColumnExpression(ColumnIdent("PersonId", Some(TableIdent("Persons", Some("test"))))),
               LiteralExpression(IntegerLiteral(7))
             )
@@ -220,7 +231,8 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
     ("""Select 5 > 1""", Select(
       projections = List(
         ExpressionProjection(
-          IsGtExpression(
+          ComparisonExpression(
+            ">",
             LiteralExpression(IntegerLiteral(5)),
             LiteralExpression(IntegerLiteral(1))
           )
@@ -231,9 +243,11 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
     ("""Select 5 > 1 + 10""", Select(
       projections = List(
         ExpressionProjection(
-          IsGtExpression(
+          ComparisonExpression(
+            ">",
             LiteralExpression(IntegerLiteral(5)),
-            AddExpression(
+            MathExpression(
+              "+",
               LiteralExpression(IntegerLiteral(1)),
               LiteralExpression(IntegerLiteral(10))
             )
@@ -246,11 +260,14 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       projections = List(
         ExpressionProjection(
           AndExpression(
-            IsGtExpression(
+            "and",
+            ComparisonExpression(
+              ">",
               LiteralExpression(IntegerLiteral(1)),
               LiteralExpression(IntegerLiteral(0))
             ),
-            SubExpression(
+            MathExpression(
+              "-",
               LiteralExpression(IntegerLiteral(2)),
               LiteralExpression(IntegerLiteral(2))
             )
@@ -278,7 +295,8 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
     ("""select max(age)/min(age)""", Select(
       projections = List(
         ExpressionProjection(
-          DivideExpression(
+          MathExpression(
+            "/",
             FunctionCallExpression("max", args = List(
               ColumnExpression(ColumnIdent("age", None))
             )),
@@ -308,7 +326,8 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
               LiteralExpression(StringLiteral("Youhou")),
               LiteralExpression(IntegerLiteral(2)),
               LiteralExpression(NullLiteral),
-              IsGtExpression(
+              ComparisonExpression(
+                ">",
                 LiteralExpression(IntegerLiteral(4)),
                 LiteralExpression(IntegerLiteral(7))
               )
@@ -338,11 +357,13 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       projections = List(
         ExpressionProjection(
           AndExpression(
+            "and",
             IsBetweenExpression(
               LiteralExpression(IntegerLiteral(15)),
               not = false,
               (
-                AddExpression(
+                MathExpression(
+                  "+",
                   LiteralExpression(IntegerLiteral(3)),
                   LiteralExpression(IntegerLiteral(7))
                 ) ->
@@ -371,7 +392,8 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
     ("""Select 1 BETWEEN 0 AND 4 > 2""", Select(
       projections = List(
         ExpressionProjection(
-          IsGtExpression(
+          ComparisonExpression(
+            ">",
             IsBetweenExpression(
               LiteralExpression(IntegerLiteral(1)),
               not = false,
@@ -400,7 +422,8 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       projections = List(
         ExpressionProjection(
           NotExpression(
-            AddExpression(
+            MathExpression(
+              "+",
               LiteralExpression(IntegerLiteral(3)),
               LiteralExpression(IntegerLiteral(3))
             )
@@ -414,7 +437,8 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       projections = List(
         ExpressionProjection(
           NotExpression(
-            IsGtExpression(
+            ComparisonExpression(
+              ">",
               LiteralExpression(IntegerLiteral(5)),
               LiteralExpression(IntegerLiteral(3))
             )
@@ -527,9 +551,11 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
     ("""SELECT -(1 + 2)""", Select(
       projections = List(
         ExpressionProjection(
-          UnaryMinusExpression(
+          UnaryMathExpression(
+            "-",
             ParenthesedExpression(
-              AddExpression(
+              MathExpression(
+                "+",
                 LiteralExpression(IntegerLiteral(1)),
                 LiteralExpression(IntegerLiteral(2))
               )
@@ -542,8 +568,10 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
     ("""SELECT -1 + 2""", Select(
       projections = List(
         ExpressionProjection(
-          AddExpression(
-            UnaryMinusExpression(
+          MathExpression(
+            "+",
+            UnaryMathExpression(
+              "-",
               LiteralExpression(IntegerLiteral(1))
             ),
             LiteralExpression(IntegerLiteral(2))
@@ -555,8 +583,10 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
     ("""SELECT - 1 + 2""", Select(
       projections = List(
         ExpressionProjection(
-          AddExpression(
-            UnaryMinusExpression(
+          MathExpression(
+            "+",
+            UnaryMathExpression(
+              "-",
               LiteralExpression(IntegerLiteral(1))
             ),
             LiteralExpression(IntegerLiteral(2))
@@ -568,8 +598,10 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
     ("""SELECT - 1 - 2""", Select(
       projections = List(
         ExpressionProjection(
-          SubExpression(
-            UnaryMinusExpression(
+          MathExpression(
+            "-",
+            UnaryMathExpression(
+              "-",
               LiteralExpression(IntegerLiteral(1))
             ),
             LiteralExpression(IntegerLiteral(2))
@@ -581,11 +613,14 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
     ("""Select 8 / (- 1 + 1) as "BAM!!!";""", Select(
       projections = List(
         ExpressionProjection(
-          DivideExpression(
+          MathExpression(
+            "/",
             LiteralExpression(IntegerLiteral(8)),
             ParenthesedExpression(
-              AddExpression(
-                UnaryMinusExpression(
+              MathExpression(
+                "+",
+                UnaryMathExpression(
+                  "-",
                   LiteralExpression(IntegerLiteral(1))
                 ),
                 LiteralExpression(IntegerLiteral(1))
@@ -604,7 +639,8 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
             Select(
               projections = List(
                 ExpressionProjection(
-                  AddExpression(
+                  MathExpression(
+                    "+",
                     LiteralExpression(IntegerLiteral(1)),
                     LiteralExpression(IntegerLiteral(2))
                   )
@@ -638,7 +674,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
           CaseWhenExpression(
             value = None,
             mapping = List(
-              (IsEqExpression(ColumnExpression(ColumnIdent("a")), ColumnExpression(ColumnIdent("b"))), LiteralExpression(StringLiteral("foo")))
+              (ComparisonExpression("=", ColumnExpression(ColumnIdent("a")), ColumnExpression(ColumnIdent("b"))), LiteralExpression(StringLiteral("foo")))
             ),
             elseVal = None
           )
@@ -769,7 +805,8 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
           InnerJoin,
           SingleTableRelation(TableIdent("Country"), alias = Some("p")),
           on = Some(
-            IsEqExpression(
+            ComparisonExpression(
+              "=",
               ColumnExpression(ColumnIdent("country_id", Some(TableIdent("v")))),
               ColumnExpression(ColumnIdent("country_id", Some(TableIdent("p"))))
             )

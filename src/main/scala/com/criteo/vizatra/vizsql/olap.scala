@@ -77,7 +77,7 @@ case class OlapQuery(query: Query) {
       case expr @ FunctionCallExpression("sum", _) => Some(SumPostAggregate(expr))
       case FunctionCallExpression("zeroifnull", expr :: Nil) => rewriteRecursively(expr)
       case FunctionCallExpression("nullifzero", expr :: Nil) => rewriteRecursively(expr)
-      case DivideExpression(left, right) =>
+      case MathExpression("/", left, right) =>
         for {
           leftPA <- rewriteRecursively(left)
           rightPA <- rewriteRecursively(right)
@@ -202,11 +202,11 @@ object OlapQuery {
 
   def rewriteExpression(parameters: Set[String], expression: Expression): Option[Expression] = {
     def rewriteRecursively(expression: Expression): Option[Expression] = expression match {
-      case AndExpression(left, right) =>
+      case AndExpression(op, left, right) =>
         (rewriteRecursively(left) :: rewriteRecursively(right) :: Nil).flatten match {
           case Nil => None
           case x :: Nil => Some(x)
-          case l :: r :: Nil => Some(AndExpression(l, r))
+          case l :: r :: Nil => Some(AndExpression(op, l, r))
           case _ => sys.error("Unreacheable path")
         }
       case expr =>

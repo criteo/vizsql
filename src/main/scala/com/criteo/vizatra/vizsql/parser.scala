@@ -3,11 +3,57 @@ package com.criteo.vizatra.vizsql
 import scala.util.parsing.combinator._
 import scala.util.parsing.combinator.lexical._
 import scala.util.parsing.combinator.syntactical._
-import scala.util.parsing.combinator.token._
 import scala.util.parsing.input.CharArrayReader.EofCh
 
 trait SQLParser {
   def parseStatement(sql: String): Either[Err,Statement]
+}
+
+object SQL99Parser {
+  val keywords = Set(
+    "all", "and", "as", "asc", "between", "boolean", "by", "case", "cast", "count", "cube",
+    "date", "datetime", "decimal", "desc", "distinct", "else", "end", "exists", "false", "from", "group", "grouping",
+    "in", "inner", "integer", "is", "join", "left", "like",
+    "not", "null", "numeric", "on", "or", "order", "outer", "real", "right", "rollup", "select",
+    "sets", "then", "timestamp", "true", "unknown", "varchar", "when", "where"
+  )
+
+  val delimiters = Set(
+    "(", ")", "\"",
+    "'", "%", "&",
+    "*", "/", "+",
+    "-", ",", ".",
+    ":", ";", "<",
+    ">", "?", "[",
+    "]", "_", "|",
+    "=", "{", "}",
+    "^", "??(", "??)",
+    "<>", ">=", "<=",
+    "||", "->", "=>"
+  )
+  val comparisonOperators = Set("=", "<>", "<", ">", ">=", "<=", "like")
+
+  val orOperators = Set("or")
+
+  val andOperators = Set("and")
+
+  val additionOperators = Set("+", "-")
+
+  val multiplicationOperators = Set("*", "/")
+
+  val unaryOperators = Set("-", "+")
+
+  val typeMap = Map(
+    "timestamp" -> TimestampTypeLiteral,
+    "datetime"  -> TimestampTypeLiteral,
+    "date"      -> DateTypeLiteral,
+    "boolean"   -> BooleanTypeLiteral,
+    "varchar"   -> VarcharTypeLiteral,
+    "integer"   -> IntegerTypeLiteral,
+    "numeric"   -> NumericTypeLiteral,
+    "decimal"   -> DecimalTypeLiteral,
+    "real"      -> RealTypeLiteral
+  )
 }
 
 class SQL99Parser extends SQLParser with TokenParsers with PackratParsers {
@@ -23,37 +69,15 @@ class SQL99Parser extends SQLParser with TokenParsers with PackratParsers {
     case class Delimiter(chars: String) extends Token
   }
 
-  object SQL99Lexical {
-
-    val keywords = Set(
-      "all", "and", "as", "asc", "between", "boolean", "by", "case", "cast", "count", "cube",
-      "date", "datetime", "decimal", "desc", "distinct", "else", "end", "exists", "false", "from", "group", "grouping",
-      "in", "inner", "integer", "is", "join", "left", "like",
-      "not", "null", "numeric", "on", "or", "order", "outer", "real", "right", "rollup", "select",
-      "sets", "then", "timestamp", "true", "unknown", "varchar", "when", "where"
-    )
-
-    val delimiters = Set(
-      "(", ")", "\"",
-      "'", "%", "&",
-      "*", "/", "+",
-      "-", ",", ".",
-      ":", ";", "<",
-      ">", "?", "[",
-      "]", "_", "|",
-      "=", "{", "}",
-      "^", "??(", "??)",
-      "<>", ">=", "<=",
-      "||", "->", "=>"
-    )
-  }
-
   class SQLLexical extends Lexical with SQLTokens {
 
-    lazy val whitespace = rep(whitespaceChar)
+    lazy val whitespace = rep(whitespaceChar | blockComment | lineComment)
 
-    val keywords = SQL99Lexical.keywords
-    val delimiters = SQL99Lexical.delimiters
+    val keywords = SQL99Parser.keywords
+    val delimiters = SQL99Parser.delimiters
+
+    lazy val blockComment = '/' ~ '*' ~ rep(chrExcept('*', EofCh) | ('*' ~ chrExcept('/', EofCh))) ~ '*' ~ '/'
+    lazy val lineComment = '-' ~ '-' ~ rep(chrExcept('\n', '\r', EofCh))
 
     lazy val delimiter = {
       delimiters.toList.sorted.map(s => accept(s.toList) ^^^ Delimiter(s)).foldRight(
@@ -136,17 +160,11 @@ class SQL99Parser extends SQLParser with TokenParsers with PackratParsers {
   )
 
   lazy val typeLiteral =
-    ( "timestamp" ^^^ TimestampTypeLiteral
-    | "datetime"  ^^^ TimestampTypeLiteral
-    | "date"      ^^^ DateTypeLiteral
-    | "boolean"   ^^^ BooleanTypeLiteral
-    | "varchar"   ^^^ VarcharTypeLiteral
-    | "integer"   ^^^ IntegerTypeLiteral
-    | "numeric"   ^^^ NumericTypeLiteral
-    | "decimal"   ^^^ DecimalTypeLiteral
-    | "real"      ^^^ RealTypeLiteral
-    | failure("type expected")
-    )
+    (typeMap.map { case (typeName, typeType) =>
+      typeName ^^^ typeType
+    } ++ Seq(failure("type expected"))).reduceLeft(_ | _)
+
+  val typeMap = SQL99Parser.typeMap
 
   lazy val column = pos(
     ( ident ~ "." ~ ident ~ "." ~ ident ^^ { case s ~ _ ~ t ~ _ ~ c => ColumnIdent(c, Some(TableIdent(t, Some(s)))) }
@@ -165,13 +183,15 @@ class SQL99Parser extends SQLParser with TokenParsers with PackratParsers {
 
   lazy val or = (precExpr: Parser[Expression]) =>
     precExpr *
-    ( "or" ^^^ OrExpression
-    )
+    orOperators.map { op => op ^^^ OrExpression.operator(op) _ }.reduce(_ | _)
+
+  val orOperators = SQL99Parser.orOperators
 
   lazy val and = (precExpr: Parser[Expression]) =>
     precExpr *
-    ( "and" ^^^ AndExpression
-    )
+    andOperators.map { op => op ^^^ AndExpression.operator(op) _ }.reduce(_ | _)
+
+  val andOperators = SQL99Parser.andOperators
 
   lazy val not = (precExpr: Parser[Expression]) => {
     def thisExpr: Parser[Expression] =
@@ -188,14 +208,9 @@ class SQL99Parser extends SQLParser with TokenParsers with PackratParsers {
 
   lazy val comparator = (precExpr: Parser[Expression]) =>
     precExpr *
-    ( "="     ^^^ IsEqExpression
-    | "<>"    ^^^ IsNeqExpression
-    | "<"     ^^^ IsLtExpression
-    | ">"     ^^^ IsGtExpression
-    | ">="    ^^^ IsGeExpression
-    | "<="    ^^^ IsLeExpression
-    | "like"  ^^^ IsLikeExpression
-    )
+    comparisonOperators.map{ op => op ^^^ ComparisonExpression.operator(op)_ }.reduce(_ | _)
+
+  val comparisonOperators = SQL99Parser.comparisonOperators
 
   lazy val between = (precExpr: Parser[Expression]) =>
     precExpr ~ rep(opt("not") ~ ("between" ~> precExpr ~ ("and" ~> precExpr))) ^^ {
@@ -224,21 +239,22 @@ class SQL99Parser extends SQLParser with TokenParsers with PackratParsers {
 
   lazy val add = (precExpr: Parser[Expression]) =>
     precExpr *
-    ( "+" ^^^ AddExpression
-    | "-" ^^^ SubExpression
-    )
+    additionOperators.map { op => op ^^^ MathExpression.operator(op)_ }.reduce(_ | _)
+
+  val additionOperators = SQL99Parser.additionOperators
 
   lazy val multiply = (precExpr: Parser[Expression]) =>
     precExpr *
-    ( "*" ^^^ MultiplyExpression
-    | "/" ^^^ DivideExpression
-    )
+    multiplicationOperators.map { op => op ^^^ MathExpression.operator(op)_ }.reduce(_ |  _)
+
+  val multiplicationOperators = SQL99Parser.multiplicationOperators
 
   lazy val unary = (precExpr: Parser[Expression]) =>
-    ( precExpr
-    | "-" ~> precExpr ^^ UnaryMinusExpression
-    | "+" ~> precExpr ^^ UnaryPlusExpression
-    )
+    ((unaryOperators.map { op =>
+      op ~ precExpr ^^ { case `op` ~ p => UnaryMathExpression(op, p) }
+    }: Set[Parser[Expression]]) + precExpr).reduce(_ | _)
+
+  val unaryOperators = SQL99Parser.unaryOperators
 
   lazy val placeholder =
     opt(ident) ~ opt(":" ~> typeLiteral) ^^ { case i ~ t => ExpressionPlaceholder(Placeholder(i), t) }
@@ -302,7 +318,7 @@ class SQL99Parser extends SQLParser with TokenParsers with PackratParsers {
     )
 
   lazy val exprProjection =
-    expr ~ opt("as" ~> (ident | stringLiteral)) ^^ {
+    expr ~ opt(opt("as") ~> (ident | stringLiteral)) ^^ {
       case e ~ a => ExpressionProjection(e, a.collect { case StringLiteral(v) => v; case a: String => a })
     }
 

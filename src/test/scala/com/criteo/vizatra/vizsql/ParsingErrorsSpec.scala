@@ -59,10 +59,10 @@ class ParsingErrorsSpec extends PropSpec with Matchers with EitherValues {
       """
     ),
     (
-      """select * from (select 1sh)""",
-      """|select * from (select 1sh)
-         |                       ^
-         |Error: ) expected
+      """select * from (select 1sh);""",
+      """|select * from (select 1sh);
+         |                          ^
+         |Error: ident expected
       """
     ),
     (

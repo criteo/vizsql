@@ -174,10 +174,7 @@ case class ColumnExpression(column: ColumnIdent) extends Expression {
   def visit = Nil
 }
 
-trait MathExpression extends Expression {
-  val left: Expression
-  val right: Expression
-
+case class MathExpression(op: String, left: Expression, right: Expression) extends Expression {
   def getPlaceholders(db: DB, expectedType: Option[Type]) = for {
     leftPlaceholders <- left.getPlaceholders(db, Some(DECIMAL())).right
     rightPlaceholders <- right.getPlaceholders(db, Some(DECIMAL())).right
@@ -198,28 +195,21 @@ trait MathExpression extends Expression {
   }
 
   def visit = left :: right :: Nil
+  def show = left.show ~- keyword(op) ~- right.show
 }
 
-
-case class AddExpression(left: Expression, right: Expression) extends MathExpression {
-  def show = left.show ~- "+" ~- right.show
+object MathExpression {
+  def operator(op: String)(left: Expression, right: Expression) = apply(op, left, right)
 }
 
-case class SubExpression(left: Expression, right: Expression) extends MathExpression {
-  def show = left.show ~- "-" ~- right.show
+case class UnaryMathExpression(op: String, expression: Expression) extends Expression {
+  def getPlaceholders(db: DB, expectedType: Option[Type]) = expression.getPlaceholders(db, Some(DECIMAL()))
+  def resultType(db: DB, placeholders: Placeholders) = expression.resultType(db, placeholders)
+  def show = keyword(op) ~ expression.show
+  def visit = expression :: Nil
 }
 
-case class MultiplyExpression(left: Expression, right: Expression) extends MathExpression {
-  def show = left.show ~- "*" ~- right.show
-}
-
-case class DivideExpression(left: Expression, right: Expression) extends MathExpression {
-  def show = left.show ~- "/" ~- right.show
-}
-
-trait ComparisonExpression extends Expression {
-  val left: Expression
-  val right: Expression
+case class ComparisonExpression(op: String, left: Expression, right: Expression) extends Expression {
   def getPlaceholders(db: DB, expectedType: Option[Type]) = {
     firstKnownType(left :: right :: Nil, db, None).right.flatMap { tl =>
       for {
@@ -237,39 +227,17 @@ trait ComparisonExpression extends Expression {
     BOOLEAN(nullable = leftType.nullable || rightType.nullable)
   }
   def visit = left :: right :: Nil
+  def show = left.show ~- keyword(op) ~- right.show
 }
 
-case class IsEqExpression(left: Expression, right: Expression) extends ComparisonExpression {
-  def show = left.show ~- "=" ~- right.show
-}
-
-case class IsNeqExpression(left: Expression, right: Expression) extends ComparisonExpression {
-  def show = left.show ~- "<>" ~- right.show
-}
-
-case class IsLtExpression(left: Expression, right: Expression) extends ComparisonExpression {
-  def show = left.show ~- "<" ~- right.show
-}
-
-case class IsGtExpression(left: Expression, right: Expression) extends ComparisonExpression {
-  def show = left.show ~- ">" ~- right.show
-}
-
-case class IsGeExpression(left: Expression, right: Expression) extends ComparisonExpression {
-  def show = left.show ~- ">=" ~- right.show
-}
-
-case class IsLeExpression(left: Expression, right: Expression) extends ComparisonExpression {
-  def show = left.show ~- "<=" ~- right.show
-}
-
-case class IsLikeExpression(left: Expression, right: Expression) extends ComparisonExpression {
-  def show = left.show ~- keyword("like") ~- right.show
+object ComparisonExpression {
+  def operator(op: String)(left: Expression, right: Expression) = apply(op, left, right)
 }
 
 trait BooleanExpression extends Expression {
-  val left: Expression
-  val right: Expression
+  def op: String
+  def right: Expression
+  def left: Expression
   def getPlaceholders(db: DB, expectedType: Option[Type]) = for {
     leftPlaceholders <- left.getPlaceholders(db, Some(BOOLEAN())).right
     rightPlaceholders <- right.getPlaceholders(db, Some(BOOLEAN())).right
@@ -283,14 +251,19 @@ trait BooleanExpression extends Expression {
     BOOLEAN(nullable = leftType.nullable || rightType.nullable)
   }
   def visit = left :: right :: Nil
+  def show = left.show ~/ keyword(op) ~- right.show
 }
 
-case class AndExpression(left: Expression, right: Expression) extends BooleanExpression {
-  def show = left.show ~/ keyword("and") ~- right.show
+case class AndExpression(op: String, left: Expression, right: Expression) extends BooleanExpression
+
+object AndExpression {
+  def operator(op: String)(left: Expression, right: Expression) = apply(op, left, right)
 }
 
-case class OrExpression(left: Expression, right: Expression) extends BooleanExpression {
-  def show = left.show ~/ keyword("or") ~- right.show
+case class OrExpression(op: String, left: Expression, right: Expression) extends BooleanExpression
+
+object OrExpression {
+  def operator(op: String)(left: Expression, right: Expression) = apply(op, left, right)
 }
 
 case class IsInExpression(left: Expression, not: Boolean, right: List[Expression]) extends Expression {
@@ -414,20 +387,6 @@ case class ExistsExpression(select: Select) extends Expression {
   def resultType(db: DB, placeholders: Placeholders) = Right(BOOLEAN(nullable = false))
   def show = keyword("exists") ~- "(" ~| (select.show) ~ ")"
   def visit = ???
-}
-
-case class UnaryMinusExpression(expression: Expression) extends Expression {
-  def getPlaceholders(db: DB, expectedType: Option[Type]) = expression.getPlaceholders(db, Some(DECIMAL()))
-  def resultType(db: DB, placeholders: Placeholders) = expression.resultType(db, placeholders)
-  def show = "-" ~ expression.show
-  def visit = expression :: Nil
-}
-
-case class UnaryPlusExpression(expression: Expression) extends Expression {
-  def getPlaceholders(db: DB, expectedType: Option[Type]) = expression.getPlaceholders(db, Some(DECIMAL()))
-  def resultType(db: DB, placeholders: Placeholders) = expression.resultType(db, placeholders)
-  def show = "+" ~ expression.show
-  def visit = expression :: Nil
 }
 
 case class SubSelectExpression(select: Select) extends Expression {
