@@ -92,12 +92,15 @@ class SQL99Parser extends SQLParser with TokenParsers with PackratParsers {
         if(keywords.contains(chars.toLowerCase)) Keyword(chars.toLowerCase) else Identifier(chars)
     }
 
+    def customToken: Parser[Token] = elem("should not exist", _ => false) ^^ { _ => sys.error("custom token should not exist")}
+
     lazy val token =
-      ( identifierOrKeyword
+      ( customToken
+      | identifierOrKeyword
       | rep1(digit) ~ ('.' ~> rep1(digit) )             ^^ { case i ~ d => DecimalLit(i.mkString + "." + d.mkString) }
       | rep1(digit)                                     ^^ { case i => IntegerLit(i.mkString) }
       | '\'' ~ rep(chrExcept('\'', '\n', EofCh)) ~ '\'' ^^ { case '\'' ~ chars ~ '\'' => StringLit(chars mkString "") }
-      | '\"' ~ rep(chrExcept('\"', '\n', EofCh)) ~ '\"' ^^ { case '\"' ~ chars ~ '\"' => StringLit(chars mkString "") }
+      | '\"' ~ rep(chrExcept('\"', '\n', EofCh)) ~ '\"' ^^ { case '\"' ~ chars ~ '\"' => Identifier(chars mkString "") }
       | EofCh                                           ^^^ EOF
       | '\'' ~> failure("unclosed string literal")
       | '\"' ~> failure("unclosed string literal")

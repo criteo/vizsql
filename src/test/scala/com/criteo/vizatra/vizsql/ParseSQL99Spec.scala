@@ -114,7 +114,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
     ("""Select "Kiki", 'Coco'""", Select(
       projections = List(
         ExpressionProjection(
-          LiteralExpression(StringLiteral("Kiki"))
+          ColumnExpression(ColumnIdent("Kiki"))
         ),
         ExpressionProjection(
           LiteralExpression(StringLiteral("Coco"))
@@ -129,7 +129,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
           alias = Some("name")
         ),
         ExpressionProjection(
-          LiteralExpression(StringLiteral("Coco")),
+          ColumnExpression(ColumnIdent("Coco")),
           alias = Some("firstname")
         )
       )

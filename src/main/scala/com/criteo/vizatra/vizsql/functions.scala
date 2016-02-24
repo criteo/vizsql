@@ -60,7 +60,7 @@ object SQLFunction {
     case "min" | "max" => new SQLFunction1 {
       def result = { case (_, t) => Right(t) }
     }
-    case "sum" => new SQLFunction1 {
+    case "avg" | "sum" => new SQLFunction1 {
       def result = {
         case (_, t @ (INTEGER(_) | DECIMAL(_))) => Right(t)
         case (arg, _) => Left(TypeError("expected numeric argument", arg.pos))
