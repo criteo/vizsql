@@ -211,7 +211,7 @@ case class UnaryMathExpression(op: String, expression: Expression) extends Expre
 
 case class ComparisonExpression(op: String, left: Expression, right: Expression) extends Expression {
   def getPlaceholders(db: DB, expectedType: Option[Type]) = {
-    firstKnownType(left :: right :: Nil, db, None).right.flatMap { tl =>
+    commonParentType(left :: right :: Nil, db, None).right.flatMap { tl =>
       for {
         leftPlaceholders <- left.getPlaceholders(db, Some(tl)).right
         rightPlaceholders <- right.getPlaceholders(db, Some(tl)).right
@@ -268,7 +268,7 @@ object OrExpression {
 
 case class IsInExpression(left: Expression, not: Boolean, right: List[Expression]) extends Expression {
   def getPlaceholders(db: DB, expectedType: Option[Type]) = {
-    firstKnownType(left :: right, db, None).right.flatMap { tl =>
+    commonParentType(left :: right, db, None).right.flatMap { tl =>
       for {
         leftPlaceholders <- left.getPlaceholders(db, Some(tl)).right
         rightPlaceholders <- right.foldRight(Right(Placeholders()):Either[Err,Placeholders]) {
@@ -320,7 +320,7 @@ case class FunctionCallExpression(name: String, args: List[Expression]) extends 
 
 case class IsBetweenExpression(expression: Expression, not: Boolean, bounds: (Expression, Expression)) extends Expression {
   def getPlaceholders(db: DB, expectedType: Option[Type]) = {
-    firstKnownType(expression :: bounds._1 :: bounds._2 :: Nil, db, None).right.flatMap { tl =>
+    commonParentType(expression :: bounds._1 :: bounds._2 :: Nil, db, None).right.flatMap { tl =>
       for {
         exprPlaceholders <- expression.getPlaceholders(db, Some(tl)).right
         lowerBoundPlaceholders <- bounds._1.getPlaceholders(db, Some(tl)).right
@@ -413,7 +413,7 @@ case class CaseWhenExpression(value: Option[Expression], mapping: List[(Expressi
       for {
         valPlaceholders <- value.map(_.getPlaceholders(db, None)).getOrElse(Right(Placeholders())).right
         valType <- value.map(_.resultType(db, valPlaceholders)).getOrElse(Right(BOOLEAN(true))).right
-        resultType <- firstKnownType(mapping.map(_._2) ++ elseVal, db, expectedType).right
+        resultType <- commonParentType(mapping.map(_._2) ++ elseVal, db, expectedType).right
         mappingPlaceholders <- mapping.foldLeft(Right(Placeholders()): Either[Err, Placeholders]) { case (acc, (cond, res)) =>
           for {
             a <- acc.right
@@ -424,7 +424,7 @@ case class CaseWhenExpression(value: Option[Expression], mapping: List[(Expressi
         elsePlaceHolders <- elseVal.map(_.getPlaceholders(db, Some(resultType))).getOrElse(Right(Placeholders())).right
       } yield valPlaceholders ++ mappingPlaceholders ++ elsePlaceHolders
   def resultType(db: DB, placeholders: Placeholders) =
-    firstKnownType(mapping.map(_._2) ++ elseVal, db, None).right.map { t =>
+    commonParentType(mapping.map(_._2) ++ elseVal, db, None).right.map { t =>
       t.withNullable(t.nullable || elseVal.isEmpty)
     }
   def show =
@@ -715,10 +715,18 @@ object Utils {
     }
   }
 
-  def firstKnownType(exprs: List[Expression], db: DB, expectedType: Option[Type]): Either[Err,Type] = {
+  def commonParentType(exprs: List[Expression], db: DB, expectedType: Option[Type]): Either[Err,Type] = {
     expectedType.map(Right.apply).getOrElse {
       val all = extractAllTypes(exprs, db, None)
-      all.find(_.isRight).getOrElse {
+      if (all.exists(_.isRight)) {
+        all.zipWithIndex.collect { case (Right(t), i) => (t, i) }.foldLeft[Either[Err, Type]](Right(NULL)) {
+          case (Right(acc), (cur, i)) =>
+            if (acc.canBeCastTo(cur)) Right(cur)
+            else if (cur.canBeCastTo(acc)) Right(acc)
+            else Left(TypeError(s"expected ${acc.show}, found ${cur.show}", exprs(i).pos))
+          case (err@Left(_), _) => err
+        }
+      } else {
         Left(all.collect { case Left(err) => err }.foldLeft[Err](NoError) { case (e1, e2) => e1.combine(e2) })
       }
     }.right.map { expectedType =>
