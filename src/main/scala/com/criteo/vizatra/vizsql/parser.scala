@@ -15,7 +15,7 @@ object SQL99Parser {
     "date", "datetime", "decimal", "desc", "distinct", "else", "end", "exists", "false", "from", "group", "grouping",
     "in", "inner", "integer", "is", "join", "left", "like",
     "not", "null", "numeric", "on", "or", "order", "outer", "real", "right", "rollup", "select",
-    "sets", "then", "timestamp", "true", "unknown", "varchar", "when", "where"
+    "sets", "then", "timestamp", "true", "union", "unknown", "varchar", "when", "where"
   )
 
   val delimiters = Set(
@@ -182,7 +182,7 @@ class SQL99Parser extends SQLParser with TokenParsers with PackratParsers {
     )
 
   lazy val function =
-    identOrKeyword ~ ("(" ~> repsep(expr, ",") <~ ")") ^^ { case n ~ a => FunctionCallExpression(n.toLowerCase, a) }
+    identOrKeyword ~ ("(" ~> opt(distinct) ~ repsep(expr, ",") <~ ")") ^^ { case n ~ (d ~ a) => FunctionCallExpression(n.toLowerCase, d, a) }
 
   lazy val or = (precExpr: Parser[Expression]) =>
     precExpr *
@@ -402,14 +402,24 @@ class SQL99Parser extends SQLParser with TokenParsers with PackratParsers {
     ("order" ~ "by") ~> repsep(sortExpr, ",")
 
   lazy val distinct =
-    ( "distinct" ^^^ SelectDistinct
-    | "all"      ^^^ SelectAll
+    ( "distinct" ^^^ SetDistinct
+    | "all"      ^^^ SetAll
     )
 
-  lazy val select: Parser[Select] =
-    "select" ~> opt(distinct) ~ rep1sep(projections, ",") ~ opt(relations) ~ opt(filters) ~ opt(groupBy) ~ opt(orderBy) ^^ {
-      case d ~ p ~ r ~ f ~ g ~ o => Select(d, p, r.getOrElse(Nil), f, g.getOrElse(Nil), o.getOrElse(Nil))
+  lazy val unionSelect: Parser[UnionSelect] =
+    statement ~ ("union" ~> opt(distinct)) ~ statement ^^ {
+      case l ~ d ~ r => UnionSelect(l, d, r)
     }
+
+  lazy val simpleSelect: Parser[SimpleSelect] =
+    "select" ~> opt(distinct) ~ rep1sep(projections, ",") ~ opt(relations) ~ opt(filters) ~ opt(groupBy) ~ opt(orderBy) ^^ {
+      case d ~ p ~ r ~ f ~ g ~ o => SimpleSelect(d, p, r.getOrElse(Nil), f, g.getOrElse(Nil), o.getOrElse(Nil))
+    }
+
+  lazy val select: PackratParser[Select] =
+    ( unionSelect
+    | simpleSelect
+    )
 
   lazy val statement = pos(
     ( select

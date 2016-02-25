@@ -492,7 +492,7 @@ class OlapSpec extends FlatSpec with Matchers with EitherValues {
 
       ("clicks", Some(
         SumPostAggregate(
-          FunctionCallExpression("sum", args = List(
+          FunctionCallExpression("sum", None, args = List(
             ColumnExpression(ColumnIdent("clicks", None))
           ))
         )
@@ -500,7 +500,7 @@ class OlapSpec extends FlatSpec with Matchers with EitherValues {
 
       ("tac", Some(
         SumPostAggregate(
-          FunctionCallExpression("sum", args = List(
+          FunctionCallExpression("sum", None, args = List(
             MathExpression(
               "*",
               ColumnExpression(ColumnIdent("tac_euro", None)),
@@ -513,12 +513,12 @@ class OlapSpec extends FlatSpec with Matchers with EitherValues {
       ("ctr", Some(
         DividePostAggregate(
           SumPostAggregate(
-            FunctionCallExpression("sum", args = List(
+            FunctionCallExpression("sum", None, args = List(
               ColumnExpression(ColumnIdent("clicks", None))
             ))
           ),
           SumPostAggregate(
-            FunctionCallExpression("sum", args = List(
+            FunctionCallExpression("sum", None, args = List(
               ColumnExpression(ColumnIdent("displays", None))
             ))
           )

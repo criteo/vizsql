@@ -190,7 +190,32 @@ class FormatSQLSpec extends PropSpec with Matchers with EitherValues {
         |    ELSE 0
         |  END
       """.stripMargin
-      )
+    ),
+
+    (
+      """select 1,2 union all select 3,4 union all select 5,6""",
+      """
+        |SELECT
+        |  1,
+        |  2
+        |UNION ALL
+        |SELECT
+        |  3,
+        |  4
+        |UNION ALL
+        |SELECT
+        |  5,
+        |  6
+      """.stripMargin
+    ),
+
+    (
+      """select count(distinct woot)""",
+      """
+        |SELECT
+        |  COUNT(DISTINCT woot)
+      """.stripMargin
+    )
   )
 
   // --

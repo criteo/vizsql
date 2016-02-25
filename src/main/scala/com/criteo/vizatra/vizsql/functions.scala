@@ -74,9 +74,20 @@ object SQLFunction {
         case (_, t1) :: _ => Right(STRING(t1.nullable))
       }
     }
-    case "coalesce" => new SQLFunction2 {
+    case "coalesce" => new SQLFunctionX {
       def result = {
-        case ((_, t1), (_, _)) => Right(t1.withNullable(false))
+        case (_, t1) :: tail =>
+          tail.foldLeft[Either[Err, Type]](Right(t1)) {
+            case (Right(t), (curExpr, curType)) =>
+              Utils.parentType(t, curType, TypeError(s"expected ${t.show}, got ${curType.show}", curExpr.pos))
+            case (Left(err), _) =>
+              Left(err)
+          }
+      }
+    }
+    case "count" => new SQLFunctionX {
+      override def result = {
+        case _ :: _ => Right(INTEGER(false))
       }
     }
   }

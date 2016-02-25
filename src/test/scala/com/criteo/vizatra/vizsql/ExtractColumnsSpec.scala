@@ -98,6 +98,14 @@ class ExtractColumnsSpec extends PropSpec with Matchers with EitherValues {
 
     ("""select case city when 'a' then 2.5 when 'b' then 5.0 end AS foo from City""", List(
       Column("foo", DECIMAL(nullable = true))
+    )),
+
+    ("""select coalesce(case when city = 'a' then 1 end, 3) x from City""", List(
+      Column("x", INTEGER(nullable = false))
+    )),
+
+    ("""select coalesce(case when city = 'a' then 1 end, case when country_id = 2 then 3 end) x from City""", List(
+      Column("x", INTEGER(nullable = true))
     ))
   )
 

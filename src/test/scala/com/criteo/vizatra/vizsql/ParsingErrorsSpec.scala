@@ -78,6 +78,13 @@ class ParsingErrorsSpec extends PropSpec with Matchers with EitherValues {
          |                     ^
          |Error: end of statement expected
       """
+    ),
+    (
+      """SELECT CustomerName FROM Customers UNION ALL""",
+      """|SELECT CustomerName FROM Customers UNION ALL
+         |                                            ^
+         |Error: select expected
+      """
     )
   )
 

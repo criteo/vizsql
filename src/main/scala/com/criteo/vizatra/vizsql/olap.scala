@@ -74,9 +74,9 @@ case class OlapQuery(query: Query) {
     expression <- getProjection(metric).right.map(_.expression).right
   } yield {
     def rewriteRecursively(expression: Expression): Option[PostAggregate] = expression match {
-      case expr @ FunctionCallExpression("sum", _) => Some(SumPostAggregate(expr))
-      case FunctionCallExpression("zeroifnull", expr :: Nil) => rewriteRecursively(expr)
-      case FunctionCallExpression("nullifzero", expr :: Nil) => rewriteRecursively(expr)
+      case expr @ FunctionCallExpression("sum", _, _) => Some(SumPostAggregate(expr))
+      case FunctionCallExpression("zeroifnull", _, expr :: Nil) => rewriteRecursively(expr)
+      case FunctionCallExpression("nullifzero", _, expr :: Nil) => rewriteRecursively(expr)
       case MathExpression("/", left, right) =>
         for {
           leftPA <- rewriteRecursively(left)
@@ -93,25 +93,34 @@ case class OlapQuery(query: Query) {
 
 object OlapQuery {
 
-  def rewriteSelect(select: Select, db: DB, keepProjections: List[ExpressionProjection], availableParams: Set[String]) = {
-    for {
-      projections <- Right(select.projections.filter(x => keepProjections.contains(x))).right
-      orderBy <- Right(select.orderBy.filter(f => keepProjections.map(_.expression).contains(f.expression))).right
-      where <- Right(rewriteWhereCondition(select, availableParams)).right
-      groupBy <- Right(rewriteGroupBy(select, keepProjections.map(_.expression))).right
-      tables <- (keepProjections.map(_.expression) ++ where.toList).foldRight(Right(Nil):Either[Err,List[String]]) {
-        (p, acc) => for(a <- acc.right; b <- tablesFor(select, db, p).right) yield b ++ a
-      }.right
-      from <- Right(rewriteRelations(select, tables.toSet)).right
-      rewrittenSelect <- Right(select.copy(
-        projections = projections,
-        relations = from,
-        where = where,
-        groupBy = groupBy,
-        orderBy = orderBy)).right
-      optimizedSelect <- optimizeSubSelect(rewrittenSelect, db, availableParams).right
-    } yield {
-      optimizedSelect
+
+  def rewriteSelect(select: Select, db: DB, keepProjections: List[ExpressionProjection], availableParams: Set[String]): Either[Err, Select] = {
+    select match {
+      case s: SimpleSelect => for {
+          projections <- Right(s.projections.filter(x => keepProjections.contains(x))).right
+          orderBy <- Right(s.orderBy.filter(f => keepProjections.map(_.expression).contains(f.expression))).right
+          where <- Right(rewriteWhereCondition(s, availableParams)).right
+          groupBy <- Right(rewriteGroupBy(s, keepProjections.map(_.expression))).right
+          tables <- (keepProjections.map(_.expression) ++ where.toList).foldRight(Right(Nil):Either[Err,List[String]]) {
+            (p, acc) => for(a <- acc.right; b <- tablesFor(s, db, p).right) yield b ++ a
+          }.right
+          from <- Right(rewriteRelations(s, tables.toSet)).right
+          rewrittenSelect <- Right(s.copy(
+            projections = projections,
+            relations = from,
+            where = where,
+            groupBy = groupBy,
+            orderBy = orderBy)).right
+          optimizedSelect <- optimizeSubSelect(rewrittenSelect, db, availableParams).right
+        } yield {
+          optimizedSelect
+        }
+      case UnionSelect(left, d, right) => for {
+        rewrittenLeft <- rewriteSelect(left, db, keepProjections, availableParams).right
+        rewrittenRight <- rewriteSelect(right, db, keepProjections, availableParams).right
+      } yield {
+        UnionSelect(rewrittenLeft, d, rewrittenRight)
+      }
     }
   }
 
@@ -140,7 +149,7 @@ object OlapQuery {
     getTableReferences(select, db, expression).right.map(_.map(_.name.toLowerCase).distinct)
   }
 
-  def optimizeSubSelect(select: Select, db: DB, availableParams: Set[String]): Either[Err,Select] = {
+  def optimizeSubSelect(select: SimpleSelect, db: DB, availableParams: Set[String]): Either[Err,Select] = {
     def optimizeRecursively(relation: Relation): Either[Err,Relation] = relation match {
       case rel @ SubSelectRelation(subSelect, table) =>
         for {
@@ -183,7 +192,7 @@ object OlapQuery {
     } yield select.copy(relations = newRelations)
   }
 
-  def rewriteRelations(select: Select, tables: Set[String]): List[Relation] = {
+  def rewriteRelations(select: SimpleSelect, tables: Set[String]): List[Relation] = {
     def rewriteRecursively(relation: Relation): Option[Relation] = relation match {
       case rel @ SingleTableRelation(_, Some(table)) => if(tables.contains(table.toLowerCase)) Some(rel) else None
       case rel @ SingleTableRelation(TableIdent(table, _), None) => if(tables.contains(table.toLowerCase)) Some(rel) else None
@@ -218,11 +227,11 @@ object OlapQuery {
     rewriteRecursively(expression)
   }
 
-  def rewriteWhereCondition(select: Select, parameters: Set[String]): Option[Expression] = {
+  def rewriteWhereCondition(select: SimpleSelect, parameters: Set[String]): Option[Expression] = {
     select.where.flatMap(rewriteExpression(parameters, _))
   }
 
-  def rewriteGroupBy(select: Select, expressions: List[Expression]): List[GroupBy] = {
+  def rewriteGroupBy(select: SimpleSelect, expressions: List[Expression]): List[GroupBy] = {
     def rewriteGroupingSet(groupingSet: GroupingSet): Option[GroupingSet] = {
       Option(GroupingSet(groupingSet.groups.filter(expressions.contains))).filterNot(_.groups.isEmpty)
     }

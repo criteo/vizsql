@@ -85,7 +85,21 @@ class TypingErrorsSpec extends PropSpec with Matchers with EitherValues {
          |           ^
          |Error: expected integer, found boolean
       """
-      )
+    ),
+    (
+      """select * from (select 1 a union select true a) x""",
+      """|select * from (select 1 a union select true a) x
+         |                                ^
+         |Error: expected integer, found boolean for column a
+      """
+    ),
+    (
+      """select * from (select 1, 2 union select 1) x""",
+      """|select * from (select 1, 2 union select 1) x
+         |                                 ^
+         |Error: expected same number of columns on both sides of the union
+      """
+    )
   )
 
   // --

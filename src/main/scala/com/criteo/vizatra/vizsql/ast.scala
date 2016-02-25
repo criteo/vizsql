@@ -303,7 +303,7 @@ case class IsInExpression0(left: Expression, not: Boolean, inExpr: ExpressionPla
   override def visitPlaceholders = inExpr.placeholder :: Nil
 }
 
-case class FunctionCallExpression(name: String, args: List[Expression]) extends Expression {
+case class FunctionCallExpression(name: String, distinct: Option[SetSpec], args: List[Expression]) extends Expression {
   def getPlaceholders(db: DB, expectedType: Option[Type]) = {
     db.function(name)
       .left.map(s => TypeError(s, this.pos))
@@ -314,7 +314,10 @@ case class FunctionCallExpression(name: String, args: List[Expression]) extends 
       .left.map(s => TypeError(s, this.pos))
       .right.flatMap(_.resultType(this, db, placeholders))
   }
-  def show = keyword(name) ~ "(" ~ join(args.map(_.show), ", ") ~ ")"
+  def show = {
+    val argsShow = join(args.map(_.show), ", ")
+    keyword(name) ~ "(" ~ distinct.map(_.show ~- argsShow).getOrElse(argsShow) ~ ")"
+  }
   def visit = args
 }
 
@@ -613,6 +616,20 @@ case class GroupByCube(groups: List[Either[Expression,GroupingSet]]) extends Gro
   def expressions = groups.flatMap(_.fold(_ :: Nil, _.expressions))
 }
 
+// ----- Other clauses
+
+trait SetSpec extends SQL
+case object SetAll extends SetSpec { def show = keyword("all") }
+case object SetDistinct extends SetSpec { def show = keyword("distinct") }
+
+trait SortOrder extends SQL
+case object SortASC extends SortOrder { def show = keyword("asc") }
+case object SortDESC extends SortOrder { def show = keyword("desc") }
+
+case class SortExpression(expression: Expression, order: Option[SortOrder]) extends SQL {
+  def show = expression.show ~- order.map(_.show)
+}
+
 // ----- Statements
 
 trait Statement extends SQL {
@@ -627,38 +644,66 @@ trait Statement extends SQL {
   } yield sql
 }
 
-trait DistinctClause extends SQL
-case object SelectAll extends DistinctClause { def show = keyword("all") }
-case object SelectDistinct extends DistinctClause { def show = keyword("distinct") }
-
-trait SortOrder extends SQL
-case object SortASC extends SortOrder { def show = keyword("asc") }
-case object SortDESC extends SortOrder { def show = keyword("desc") }
-
-case class SortExpression(expression: Expression, order: Option[SortOrder]) extends SQL {
-  def show = expression.show ~- order.map(_.show)
-}
-
-case class Select(
-  distinct: Option[DistinctClause] = None,
-  projections: List[Projection] = Nil,
-  relations: List[Relation] = Nil,
-  where: Option[Expression] = None,
-  groupBy: List[GroupBy] = Nil,
-  orderBy: List[SortExpression] = Nil) extends Statement {
-
-  def getTables(db: DB) = {
-    relations.foldRight(Right(Nil):Either[Err,List[(Option[String],Table)]]) {
-      (r, acc) => for(a <- acc.right; b <- r.getTables(db).right) yield b ++ a
-    }
-  }
-
+trait Select extends Statement {
+  def projections: List[Projection]
+  def getTables(db: DB): Either[Err,List[(Option[String], Table)]]
   def getQueryView(db: DB) = getTables(db).right.map { tables =>
     db.copy(view = Schemas(
       tables.groupBy(_._1).map {
         case (schemaName, tables) => Schema(schemaName.getOrElse(""), tables.map(_._2))
       }.toList
     ))
+  }
+  def getColumns(db: DB): Either[Err,List[Column]]
+}
+
+case class UnionSelect(left: Select, distinct: Option[SetSpec], right: Select) extends Select {
+  lazy val projections = left.projections ++ right.projections
+
+  def getTables(db: DB) = for {
+    leftTables <- left.getTables(db).right
+    rightTables <- right.getTables(db).right
+  } yield leftTables ++ rightTables
+
+  def getColumns(db: DB) = (for {
+    leftCols <- left.getColumns(db).right
+    rightCols <- right.getColumns(db).right
+  } yield {
+    if (leftCols.length != rightCols.length) {
+      Left(TypeError("expected same number of columns on both sides of the union", right.pos))
+    } else {
+      val zipped = leftCols.zip(rightCols)
+      zipped.foldRight[Either[Err,List[Column]]](Right(List.empty)) {
+        case ((l, r), Right(acc)) =>
+          parentType(l.typ, r.typ, TypeError(s"expected ${l.typ.show}, found ${r.typ.show} for column ${r.name}", right.pos)) match {
+            case Right(typ) => Right(l.copy(typ = typ) :: acc)
+            case Left(e) => Left(e)
+          }
+        case (_, e@Left(_)) => e
+      }
+    }
+  }).joinRight
+
+  def getPlaceholders(db: DB) = for {
+    leftPlaceholders <- left.getPlaceholders(db).right
+    rightPlaceholders <- right.getPlaceholders(db).right
+  } yield leftPlaceholders ++ rightPlaceholders
+
+  def show = left.show ~/ keyword("union") ~- distinct.map(_.show) ~/ right.show
+}
+
+case class SimpleSelect(
+  distinct: Option[SetSpec] = None,
+  projections: List[Projection] = Nil,
+  relations: List[Relation] = Nil,
+  where: Option[Expression] = None,
+  groupBy: List[GroupBy] = Nil,
+  orderBy: List[SortExpression] = Nil) extends Select {
+
+  def getTables(db: DB) = {
+    relations.foldRight(Right(Nil):Either[Err,List[(Option[String],Table)]]) {
+      (r, acc) => for(a <- acc.right; b <- r.getTables(db).right) yield b ++ a
+    }
   }
 
   def getColumns(db: DB) = for {
@@ -706,6 +751,11 @@ case class Select(
 
 object Utils {
 
+  def parentType(a: Type, b: Type, err: => Err): Either[Err, Type] =
+    if (a.canBeCastTo(b)) Right(b)
+    else if (b.canBeCastTo(a)) Right(a)
+    else Left(err)
+
   def extractAllTypes(exprs: List[Expression], db: DB, expectedType: Option[Type]): List[Either[Err, Type]] = {
     exprs.map { expr =>
       for {
@@ -721,15 +771,13 @@ object Utils {
       if (all.exists(_.isRight)) {
         all.zipWithIndex.collect { case (Right(t), i) => (t, i) }.foldLeft[Either[Err, Type]](Right(NULL)) {
           case (Right(acc), (cur, i)) =>
-            if (acc.canBeCastTo(cur)) Right(cur)
-            else if (cur.canBeCastTo(acc)) Right(acc)
-            else Left(TypeError(s"expected ${acc.show}, found ${cur.show}", exprs(i).pos))
+            parentType(acc, cur, TypeError(s"expected ${acc.show}, found ${cur.show}", exprs(i).pos))
           case (err@Left(_), _) => err
         }
       } else {
         Left(all.collect { case Left(err) => err }.foldLeft[Err](NoError) { case (e1, e2) => e1.combine(e2) })
       }
-    }.right.map { expectedType =>
+    }.right.flatMap { expectedType =>
       val all = extractAllTypes(exprs, db, Some(expectedType))
       val allTypes = all.collect { case Right(t) => t }
       if (allTypes.isEmpty)
@@ -740,7 +788,7 @@ object Utils {
         }.map { case (t, i) =>
           Left(TypeError(s"expected ${expectedType.show}, found ${t.show}", exprs(i).pos))
         }.getOrElse(Right(expectedType.withNullable(expectedType.nullable || allTypes.exists(_.nullable))))
-    }.joinRight
+    }
   }
 
 }

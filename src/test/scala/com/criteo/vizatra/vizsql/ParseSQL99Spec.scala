@@ -9,20 +9,20 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
   val validSQL99SelectStatements = Table(
     ("SQL", "Expected AST"),
 
-    ("""SELECT *""", Select(
+    ("""SELECT *""", SimpleSelect(
       projections = List(
         AllColumns
       )
     )),
 
-    ("""select *, Customers.*""", Select(
+    ("""select *, Customers.*""", SimpleSelect(
       projections = List(
         AllColumns,
         AllTableColumns(TableIdent("Customers"))
       )
     )),
 
-    ("""Select 1""", Select(
+    ("""Select 1""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           LiteralExpression(IntegerLiteral(1))
@@ -30,7 +30,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select 1 as 'toto'""", Select(
+    ("""select 1 as 'toto'""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           LiteralExpression(IntegerLiteral(1)),
@@ -39,7 +39,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""SELECT 3.14 AS PI""", Select(
+    ("""SELECT 3.14 AS PI""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           LiteralExpression(DecimalLiteral(3.14)),
@@ -48,7 +48,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select null""", Select(
+    ("""select null""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           LiteralExpression(NullLiteral)
@@ -56,7 +56,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select NULL as kiki""", Select(
+    ("""select NULL as kiki""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           LiteralExpression(NullLiteral),
@@ -65,7 +65,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select name""", Select(
+    ("""select name""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           ColumnExpression(ColumnIdent("name", None))
@@ -73,7 +73,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select name as Nom""", Select(
+    ("""select name as Nom""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           ColumnExpression(ColumnIdent("name", None)),
@@ -82,7 +82,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select Customers.name as Nom""", Select(
+    ("""select Customers.name as Nom""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           ColumnExpression(ColumnIdent("name", Some(TableIdent("Customers")))),
@@ -91,7 +91,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select test.Customers.name as Nom""", Select(
+    ("""select test.Customers.name as Nom""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           ColumnExpression(ColumnIdent("name", Some(TableIdent("Customers", Some("test"))))),
@@ -100,7 +100,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select (test.Customers.name) as Nom""", Select(
+    ("""select (test.Customers.name) as Nom""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           ParenthesedExpression(
@@ -111,7 +111,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""Select "Kiki", 'Coco'""", Select(
+    ("""Select "Kiki", 'Coco'""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           ColumnExpression(ColumnIdent("Kiki"))
@@ -122,7 +122,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""Select 'Kiki' as name, "Coco" as firstname""", Select(
+    ("""Select 'Kiki' as name, "Coco" as firstname""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           LiteralExpression(StringLiteral("Kiki")),
@@ -135,7 +135,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""Select 1 + 3""", Select(
+    ("""Select 1 + 3""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           MathExpression(
@@ -147,7 +147,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""Select 2 * 5""", Select(
+    ("""Select 2 * 5""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           MathExpression(
@@ -159,7 +159,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""Select 8 + 2 * -5""", Select(
+    ("""Select 8 + 2 * -5""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           MathExpression(
@@ -178,7 +178,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""Select (8 + 2) * 5""", Select(
+    ("""Select(8 + 2) * 5""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           MathExpression(
@@ -196,7 +196,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""Select *, -8 + (2 * 5) as YO, (test.Persons.PersonId + 7);""", Select(
+    ("""Select *, -8 + (2 * 5) as YO, (test.Persons.PersonId + 7);""", SimpleSelect(
       projections = List(
         AllColumns,
         ExpressionProjection(
@@ -228,7 +228,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""Select 5 > 1""", Select(
+    ("""Select 5 > 1""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           ComparisonExpression(
@@ -240,7 +240,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""Select 5 > 1 + 10""", Select(
+    ("""Select 5 > 1 + 10""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           ComparisonExpression(
@@ -256,7 +256,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""Select 1 > 0 and 2 - 2 as woot ;""", Select(
+    ("""Select 1 > 0 and 2 - 2 as woot ;""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           AndExpression(
@@ -277,30 +277,30 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select max(age), min(age)""", Select(
+    ("""select max(age), min(age)""", SimpleSelect(
       projections = List(
         ExpressionProjection(
-          FunctionCallExpression("max", args = List(
+          FunctionCallExpression("max", None, args = List(
             ColumnExpression(ColumnIdent("age", None))
           ))
         ),
         ExpressionProjection(
-          FunctionCallExpression("min", args = List(
+          FunctionCallExpression("min", None, args = List(
             ColumnExpression(ColumnIdent("age", None))
           ))
         )
       )
     )),
 
-    ("""select max(age)/min(age)""", Select(
+    ("""select max(age)/min(age)""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           MathExpression(
             "/",
-            FunctionCallExpression("max", args = List(
+            FunctionCallExpression("max", None, args = List(
               ColumnExpression(ColumnIdent("age", None))
             )),
-            FunctionCallExpression("min", args = List(
+            FunctionCallExpression("min", None, args = List(
               ColumnExpression(ColumnIdent("age", None))
             ))
           )
@@ -308,7 +308,17 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select (bam in (8)) in ('Youhou', 2, null, 4 > 7) as plop""", Select(
+    ("""select count(distinct x)""", SimpleSelect(
+      projections = List(
+        ExpressionProjection(
+          FunctionCallExpression("count", Some(SetDistinct), args = List(
+            ColumnExpression(ColumnIdent("x", None))
+          ))
+        )
+      )
+    )),
+
+    ("""select (bam in (8)) in ('Youhou', 2, null, 4 > 7) as plop""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           IsInExpression(
@@ -338,7 +348,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""SELECT 'b' BETWEEN 'a' AND 'c'""", Select(
+    ("""SELECT 'b' BETWEEN 'a' AND 'c'""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           IsBetweenExpression(
@@ -353,7 +363,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""SELECT 15 BETWEEN 3 + 7 AND Min(999) and 'b' BETWEEN 'a' AND 'c' as woot, xxx""", Select(
+    ("""SELECT 15 BETWEEN 3 + 7 AND Min(999) and 'b' BETWEEN 'a' AND 'c' as woot, xxx""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           AndExpression(
@@ -367,7 +377,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
                   LiteralExpression(IntegerLiteral(3)),
                   LiteralExpression(IntegerLiteral(7))
                 ) ->
-                FunctionCallExpression("min", args = List(
+                FunctionCallExpression("min", None, args = List(
                   LiteralExpression(IntegerLiteral(999))
                 ))
               )
@@ -389,7 +399,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""Select 1 BETWEEN 0 AND 4 > 2""", Select(
+    ("""Select 1 BETWEEN 0 AND 4 > 2""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           ComparisonExpression(
@@ -408,7 +418,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select not 1""", Select(
+    ("""select not 1""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           NotExpression(
@@ -418,7 +428,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select not 3 + 3 as zero""", Select(
+    ("""select not 3 + 3 as zero""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           NotExpression(
@@ -433,7 +443,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select not 5 > 3""", Select(
+    ("""select not 5 > 3""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           NotExpression(
@@ -447,7 +457,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select 3 not in (1,2,3)""", Select(
+    ("""select 3 not in (1,2,3)""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           IsInExpression(
@@ -463,7 +473,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select 1 not BETWEEN 0 and 10""", Select(
+    ("""select 1 not BETWEEN 0 and 10""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           IsBetweenExpression(
@@ -478,7 +488,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select 2 between (3 not between 4 and 'a' in ('a', 'b', 'c')) and 10""", Select(
+    ("""select 2 between (3 not between 4 and 'a' in ('a', 'b', 'c')) and 10""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           IsBetweenExpression(
@@ -510,7 +520,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select 1 is true""", Select(
+    ("""select 1 is true""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           IsExpression(
@@ -522,7 +532,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select 1 is not false""", Select(
+    ("""select 1 is not false""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           IsExpression(
@@ -534,7 +544,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select not 1 is not unknown""", Select(
+    ("""select not 1 is not unknown""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           NotExpression(
@@ -548,7 +558,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""SELECT -(1 + 2)""", Select(
+    ("""SELECT -(1 + 2)""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           UnaryMathExpression(
@@ -565,7 +575,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""SELECT -1 + 2""", Select(
+    ("""SELECT -1 + 2""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           MathExpression(
@@ -580,7 +590,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""SELECT - 1 + 2""", Select(
+    ("""SELECT - 1 + 2""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           MathExpression(
@@ -595,7 +605,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""SELECT - 1 - 2""", Select(
+    ("""SELECT - 1 - 2""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           MathExpression(
@@ -610,7 +620,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""Select 8 / (- 1 + 1) as "BAM!!!";""", Select(
+    ("""Select 8 / (- 1 + 1) as "BAM!!!";""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           MathExpression(
@@ -632,11 +642,11 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select (select 1 + 2) as '(select 1 + 2)'""", Select(
+    ("""select (select 1 + 2) as '(select 1 + 2)'""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           SubSelectExpression(
-            Select(
+            SimpleSelect(
               projections = List(
                 ExpressionProjection(
                   MathExpression(
@@ -653,7 +663,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select case x when 1 then 2 when 3 then 5 else 0 end""", Select (
+    ("""select case x when 1 then 2 when 3 then 5 else 0 end""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           CaseWhenExpression(
@@ -668,7 +678,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select case when a = b then 'foo' end""", Select (
+    ("""select case when a = b then 'foo' end""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           CaseWhenExpression(
@@ -682,11 +692,11 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select exists (select null)""", Select(
+    ("""select exists (select null)""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           ExistsExpression(
-            Select(
+            SimpleSelect(
               projections = List(
                 ExpressionProjection(
                   LiteralExpression(NullLiteral)
@@ -698,12 +708,12 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select not exists (select null)""", Select(
+    ("""select not exists (select null)""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           NotExpression(
             ExistsExpression(
-              Select(
+              SimpleSelect(
                 projections = List(
                   ExpressionProjection(
                     LiteralExpression(NullLiteral)
@@ -716,13 +726,13 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select not not exists (select null)""", Select(
+    ("""select not not exists (select null)""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           NotExpression(
             NotExpression(
               ExistsExpression(
-                Select(
+                SimpleSelect(
                   projections = List(
                     ExpressionProjection(
                       LiteralExpression(NullLiteral)
@@ -736,7 +746,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select * from country, city""", Select(
+    ("""select * from country, city""", SimpleSelect(
       projections = List(
         AllColumns
       ),
@@ -746,7 +756,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select * from sakila.city as villes""", Select(
+    ("""select * from sakila.city as villes""", SimpleSelect(
       projections = List(
         AllColumns
       ),
@@ -755,7 +765,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select * from city villes""", Select(
+    ("""select * from city villes""", SimpleSelect(
       projections = List(
         AllColumns
       ),
@@ -764,13 +774,13 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select * from (select 1) stuff""", Select(
+    ("""select * from (select 1) stuff""", SimpleSelect(
       projections = List(
         AllColumns
       ),
       relations = List(
         SubSelectRelation(
-          Select(
+          SimpleSelect(
             projections = List(
               ExpressionProjection(
                 LiteralExpression(IntegerLiteral(1))
@@ -782,7 +792,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select * from City join Country""", Select(
+    ("""select * from City join Country""", SimpleSelect(
       projections = List(
         AllColumns
       ),
@@ -795,7 +805,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select * from City as v join Country as p on v.country_id = p.country_id""", Select(
+    ("""select * from City as v join Country as p on v.country_id = p.country_id""", SimpleSelect(
       projections = List(
         AllColumns
       ),
@@ -815,13 +825,13 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select district, sum(population) from city group by district""", Select(
+    ("""select district, sum(population) from city group by district""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           ColumnExpression(ColumnIdent("district"))
         ),
         ExpressionProjection(
-          FunctionCallExpression("sum", args = List(
+          FunctionCallExpression("sum", None, args = List(
             ColumnExpression(ColumnIdent("population"))
           ))
         )
@@ -836,7 +846,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select CAST(12 as VARCHAR)""", Select(
+    ("""select CAST(12 as VARCHAR)""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           CastExpression(
@@ -847,10 +857,10 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select TIMESTAMP(?, '00:00:00')""", Select(
+    ("""select TIMESTAMP(?, '00:00:00')""", SimpleSelect(
       projections = List(
         ExpressionProjection(
-          FunctionCallExpression("timestamp",
+          FunctionCallExpression("timestamp", None,
             List(
               ExpressionPlaceholder(Placeholder(None),None),
               LiteralExpression(StringLiteral("00:00:00"))
@@ -860,8 +870,8 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""SELECT DISTINCT device_id as id FROM wopr.dim_device ORDER BY device_name ASC""", Select(
-      distinct = Some(SelectDistinct),
+    ("""SELECT DISTINCT device_id as id FROM wopr.dim_device ORDER BY device_name ASC""", SimpleSelect(
+      distinct = Some(SetDistinct),
       projections = List(
         ExpressionProjection(
           ColumnExpression(ColumnIdent("device_id", None)),
@@ -877,6 +887,71 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
         SortExpression(
           ColumnExpression(ColumnIdent("device_name", None)),
           Some(SortASC)
+        )
+      )
+    )),
+
+    ("""SELECT 1 UNION SELECT 2""", UnionSelect(
+      SimpleSelect(
+        projections = List(
+          ExpressionProjection(
+            LiteralExpression(IntegerLiteral(1)),
+            None
+          )
+        )
+      ),
+      None,
+      SimpleSelect(
+        projections = List(
+          ExpressionProjection(
+            LiteralExpression(IntegerLiteral(2)),
+            None
+          )
+        )
+      )
+    )),
+
+    ("""SELECT a, b FROM (SELECT 1 a, 2 b UNION SELECT 3 a, 4 b) x""", SimpleSelect(
+      projections = List(
+        ExpressionProjection(
+          ColumnExpression(ColumnIdent("a")),
+            None
+          ),
+        ExpressionProjection(
+          ColumnExpression(ColumnIdent("b")),
+            None
+          )
+        ),
+      relations = List(
+        SubSelectRelation(
+          UnionSelect(
+            SimpleSelect(
+              projections = List(
+                ExpressionProjection(
+                  LiteralExpression(IntegerLiteral(1)),
+                  Some("a")
+                ),
+                ExpressionProjection(
+                  LiteralExpression(IntegerLiteral(2)),
+                  Some("b")
+                )
+              )
+            ),
+            None,
+            SimpleSelect(
+              projections = List(
+                ExpressionProjection(
+                  LiteralExpression(IntegerLiteral(3)),
+                  Some("a")
+                ),
+                ExpressionProjection(
+                  LiteralExpression(IntegerLiteral(4)),
+                  Some("b")
+                )
+              )
+            )
+          ),
+          "x"
         )
       )
     ))
