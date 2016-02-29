@@ -138,9 +138,11 @@ class OlapSpec extends FlatSpec with Matchers with EitherValues {
         JOIN wopr.dim_device d
             ON d.device_id = f.device_id
         JOIN wopr.dim_country t
-            ON t.country_id = f.affiliate_country_id
+            ON t.country_name = t2.country_name
         JOIN wopr.fact_euro_rates_hourly r
             ON r.currency_id = ?currency_id AND f.time_id = r.time_id
+        JOIN wopr.dim_country t2
+          ON t2.country_id = f.affiliate_country_id
 
     WHERE
         CAST(f.time_id AS DATE) between ?[date_range)
@@ -291,7 +293,9 @@ class OlapSpec extends FlatSpec with Matchers with EitherValues {
         """
           |wopr.fact_zone_device_stats_hourly AS f
           |JOIN wopr.dim_country AS t
-          |  ON t.country_id = f.affiliate_country_id
+          |  ON t.country_name = t2.country_name
+          |JOIN wopr.dim_country AS t2
+          |  ON t2.country_id = f.affiliate_country_id
         """
       ),
 
@@ -317,7 +321,7 @@ class OlapSpec extends FlatSpec with Matchers with EitherValues {
 
     TableDrivenPropertyChecks.forAll(examples) {
       case (tables, expectedSQL) =>
-        olapQuery.right.map(q => OlapQuery.rewriteRelations(q.query.select, tables)
+        olapQuery.right.map(q => OlapQuery.rewriteRelations(q.query.select, BIDATA, tables)
           .map(_.toSQL).mkString(",\n")) should be (Right(expectedSQL.stripMargin.trim))
     }
   }
@@ -421,7 +425,9 @@ class OlapSpec extends FlatSpec with Matchers with EitherValues {
         |FROM
         |  wopr.fact_zone_device_stats_hourly AS f
         |  JOIN wopr.dim_country AS t
-        |    ON t.country_id = f.affiliate_country_id
+        |    ON t.country_name = t2.country_name
+        |  JOIN wopr.dim_country AS t2
+        |    ON t2.country_id = f.affiliate_country_id
         |GROUP BY
         |  ROLLUP(
         |    (
@@ -456,10 +462,12 @@ class OlapSpec extends FlatSpec with Matchers with EitherValues {
         |  JOIN wopr.dim_device AS d
         |    ON d.device_id = f.device_id
         |  JOIN wopr.dim_country AS t
-        |    ON t.country_id = f.affiliate_country_id
+        |    ON t.country_name = t2.country_name
         |  JOIN wopr.fact_euro_rates_hourly AS r
         |    ON r.currency_id = 1
         |    AND f.time_id = r.time_id
+        |  JOIN wopr.dim_country AS t2
+        |    ON t2.country_id = f.affiliate_country_id
         |WHERE
         |  CAST(f.time_id AS DATE) BETWEEN '2015-09-10' AND '2015-09-11'
         |  AND t.country_code IN ('FR', 'UK', 'US', 'DE')

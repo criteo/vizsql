@@ -104,7 +104,7 @@ object OlapQuery {
           tables <- (keepProjections.map(_.expression) ++ where.toList).foldRight(Right(Nil):Either[Err,List[String]]) {
             (p, acc) => for(a <- acc.right; b <- tablesFor(s, db, p).right) yield b ++ a
           }.right
-          from <- Right(rewriteRelations(s, tables.toSet)).right
+          from <- Right(rewriteRelations(s, db, tables.toSet)).right
           rewrittenSelect <- Right(s.copy(
             projections = projections,
             relations = from,
@@ -192,21 +192,43 @@ object OlapQuery {
     } yield select.copy(relations = newRelations)
   }
 
-  def rewriteRelations(select: SimpleSelect, tables: Set[String]): List[Relation] = {
-    def rewriteRecursively(relation: Relation): Option[Relation] = relation match {
-      case rel @ SingleTableRelation(_, Some(table)) => if(tables.contains(table.toLowerCase)) Some(rel) else None
-      case rel @ SingleTableRelation(TableIdent(table, _), None) => if(tables.contains(table.toLowerCase)) Some(rel) else None
-      case rel @ SubSelectRelation(subSelect, table) => if(tables.contains(table.toLowerCase)) Some(rel) else None
-      case rel @ JoinRelation(left, _, right, _) =>
-        (rewriteRecursively(left) :: rewriteRecursively(right) :: Nil).flatten match {
-          case Nil => None
-          case x :: Nil => Some(x)
-          case l :: r :: Nil => Some(rel.copy(left = l, right = r))
-          case _ => sys.error("Unreacheable path")
-        }
-      case _ => None
+  def rewriteRelations(select: SimpleSelect, db: DB, tables: Set[String]): List[Relation] = {
+    def rewritePass(relations: List[Relation], tables: Set[String]) = {
+      def rewriteRecursively(relation: Relation): Option[Relation] = relation match {
+        case rel @ SingleTableRelation(_, Some(table)) => if(tables.contains(table.toLowerCase)) Some(rel) else None
+        case rel @ SingleTableRelation(TableIdent(table, _), None) => if(tables.contains(table.toLowerCase)) Some(rel) else None
+        case rel @ SubSelectRelation(subSelect, table) => if(tables.contains(table.toLowerCase)) Some(rel) else None
+        case rel @ JoinRelation(left, _, right, _) =>
+          (rewriteRecursively(left) :: rewriteRecursively(right) :: Nil).flatten match {
+            case Nil => None
+            case x :: Nil => Some(x)
+            case l :: r :: Nil => Some(rel.copy(left = l, right = r))
+            case _ => sys.error("Unreacheable path")
+          }
+        case _ => None
+      }
+      relations.flatMap(rewriteRecursively)
     }
-    select.relations.flatMap(rewriteRecursively)
+
+    // We start with the set of tables originally specified,
+    // and after each rewrite we check that the rewritten joins
+    // don't need more tables.
+    def rewriteRecursively(previous: List[Relation], tableSet: Set[String]): List[Relation] = {
+      def tablesUsedByRelations(relation: Relation): Set[String] = relation match {
+        case JoinRelation(left, _, right, maybeOn) =>
+          tablesUsedByRelations(left) ++ tablesUsedByRelations(right) ++ maybeOn.map { on =>
+            tablesFor(select, db, on).right.map(_.toSet).right.getOrElse(Set.empty)
+          }.getOrElse(Set.empty)
+        case _ => Set.empty
+      }
+      val rewritten = rewritePass(select.relations, tableSet)
+      if(rewritten != previous) {
+        rewriteRecursively(rewritten, tableSet ++ rewritten.flatMap(tablesUsedByRelations))
+      }
+      else rewritten
+    }
+
+    rewriteRecursively(Nil, tables)
   }
 
   def rewriteExpression(parameters: Set[String], expression: Expression): Option[Expression] = {
