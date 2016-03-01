@@ -234,6 +234,31 @@ object ComparisonExpression {
   def operator(op: String)(left: Expression, right: Expression) = apply(op, left, right)
 }
 
+case class LikeExpression(left: Expression, not: Boolean, op: String, right: Expression) extends Expression {
+  def getPlaceholders(db: DB, expectedType: Option[Type]) = {
+    commonParentType(left :: right :: Nil, db, None).right.flatMap { tl =>
+      for {
+        leftPlaceholders <- left.getPlaceholders(db, Some(tl)).right
+        rightPlaceholders <- right.getPlaceholders(db, Some(tl)).right
+      } yield {
+        leftPlaceholders ++ rightPlaceholders
+      }
+    }
+  }
+  def resultType(db: DB, placeholders: Placeholders) = for {
+    leftType <- left.resultType(db, placeholders).right
+    rightType <- right.resultType(db, placeholders).right
+  } yield {
+    BOOLEAN(nullable = leftType.nullable || rightType.nullable)
+  }
+  def visit = left :: right :: Nil
+  def show = left.show ~- (if(not) Some(keyword("not")) else None) ~- keyword(op) ~- right.show
+}
+
+object LikeExpression {
+  def operator(op: String, not: Boolean)(left: Expression, right: Expression) = apply(left, not, op, right)
+}
+
 trait BooleanExpression extends Expression {
   def op: String
   def right: Expression
@@ -321,6 +346,13 @@ case class FunctionCallExpression(name: String, distinct: Option[SetSpec], args:
   def visit = args
 }
 
+case object CountStarExpression extends Expression {
+  def getPlaceholders(db: DB, expectedType: Option[Type]) = Right(Placeholders())
+  def visit = Nil
+  def resultType(db: DB, placeholders: Placeholders) = Right(INTEGER(false))
+  def show = keyword("count") ~ "(" ~ "*" ~ ")"
+}
+
 case class IsBetweenExpression(expression: Expression, not: Boolean, bounds: (Expression, Expression)) extends Expression {
   def getPlaceholders(db: DB, expectedType: Option[Type]) = {
     commonParentType(expression :: bounds._1 :: bounds._2 :: Nil, db, None).right.flatMap { tl =>
@@ -375,7 +407,7 @@ case class NotExpression(expression: Expression) extends Expression {
 }
 
 case class IsExpression(expression: Expression, not: Boolean, literal: Literal) extends Expression {
-  def getPlaceholders(db: DB, expectedType: Option[Type]) = ???
+  def getPlaceholders(db: DB, expectedType: Option[Type]) = expression.getPlaceholders(db, Some(literal.mapType))
   def resultType(db: DB, placeholders: Placeholders) = for {
     exprType <- expression.resultType(db, placeholders).right
   } yield {
@@ -584,6 +616,8 @@ trait Join extends SQL
 case object InnerJoin extends Join { def show = keyword("join") }
 case object LeftJoin extends Join { def show = keyword("left") ~- keyword("join") }
 case object RightJoin extends Join { def show = keyword("right") ~- keyword("join") }
+case object FullJoin extends Join { def show = keyword("full") ~- keyword("join") }
+case object CrossJoin extends Join { def show = keyword("cross") ~- keyword("join") }
 
 // ----- Group by
 
@@ -698,6 +732,7 @@ case class SimpleSelect(
   relations: List[Relation] = Nil,
   where: Option[Expression] = None,
   groupBy: List[GroupBy] = Nil,
+  having: Option[Expression] = None,
   orderBy: List[SortExpression] = Nil) extends Select {
 
   def getTables(db: DB) = {
@@ -724,8 +759,9 @@ case class SimpleSelect(
         (r, acc) => for(a <- acc.right; b <- r.getPlaceholders(db).right) yield b ++ a
       }.right
       wherePlaceholders <- where.map(_.getPlaceholders(db, Some(BOOLEAN()))).getOrElse(oo).right
+      havingPlaceholders <- having.map(_.getPlaceholders(db, Some(BOOLEAN()))).getOrElse(oo).right
     } yield {
-      projectionsPlaceholders ++ relationsPlaceholders ++ wherePlaceholders
+      projectionsPlaceholders ++ relationsPlaceholders ++ wherePlaceholders ++ havingPlaceholders
     }
   }
 
@@ -742,6 +778,9 @@ case class SimpleSelect(
     Option(groupBy).filterNot(_.isEmpty).map { relations =>
       keyword("group") ~- keyword("by") ~|
         (join(groupBy.map(_.show), "," ~/ ""))
+    } ~
+    having.map { e =>
+      keyword("having") ~| e.show
     } ~
     Option(orderBy).filterNot(_.isEmpty).map { expressions =>
       keyword("order") ~- keyword("by") ~|

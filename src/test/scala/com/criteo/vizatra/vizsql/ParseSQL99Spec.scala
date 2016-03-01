@@ -678,13 +678,14 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select case when a = b then 'foo' end""", SimpleSelect(
+    ("""select case when (a = b) then 'foo' end""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           CaseWhenExpression(
             value = None,
             mapping = List(
-              (ComparisonExpression("=", ColumnExpression(ColumnIdent("a")), ColumnExpression(ColumnIdent("b"))), LiteralExpression(StringLiteral("foo")))
+              (ParenthesedExpression(ComparisonExpression("=", ColumnExpression(ColumnIdent("a")), ColumnExpression(ColumnIdent("b")))),
+                LiteralExpression(StringLiteral("foo")))
             ),
             elseVal = None
           )
@@ -825,7 +826,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
-    ("""select district, sum(population) from city group by district""", SimpleSelect(
+    ("""select district, sum(population) from city group by district having sum(population) > 10""", SimpleSelect(
       projections = List(
         ExpressionProjection(
           ColumnExpression(ColumnIdent("district"))
@@ -842,6 +843,15 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       groupBy = List(
         GroupByExpression(
           ColumnExpression(ColumnIdent("district"))
+        )
+      ),
+      having = Some(
+        ComparisonExpression(
+          ">",
+          FunctionCallExpression("sum", None, args = List(
+            ColumnExpression(ColumnIdent("population"))
+          )),
+          LiteralExpression(IntegerLiteral(10))
         )
       )
     )),
@@ -952,6 +962,38 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
             )
           ),
           "x"
+        )
+      )
+    )),
+
+    ("""SELECT a NOT LIKE 'woot%', b LIKE a""", SimpleSelect(
+      projections = List(
+        ExpressionProjection(
+          LikeExpression(
+            ColumnExpression(ColumnIdent("a",None)),
+            not = true,
+            "like",
+            LiteralExpression(StringLiteral("woot%"))
+          ),
+          None
+        ),
+        ExpressionProjection(
+          LikeExpression(
+            ColumnExpression(ColumnIdent("b",None)),
+            not = false,
+            "like",
+            ColumnExpression(ColumnIdent("a",None))
+          ),
+          None
+        )
+      )
+    )),
+
+    ("""SELECT COUNT(*) nb""", SimpleSelect(
+      projections = List(
+        ExpressionProjection(
+          CountStarExpression,
+          Some("nb")
         )
       )
     ))

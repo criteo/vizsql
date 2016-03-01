@@ -109,6 +109,7 @@ class FormatSQLSpec extends PropSpec with Matchers with EitherValues {
           CAST(date_trunc('month', f.time_id) as DATE),
           CAST(date_trunc('quarter', f.time_id) as DATE)
         ))
+        HAVING SUM(clicks) > 0
       """,
       """
         |SELECT
@@ -177,6 +178,8 @@ class FormatSQLSpec extends PropSpec with Matchers with EitherValues {
         |      CAST(DATE_TRUNC('quarter', f.time_id) AS DATE)
         |    )
         |  )
+        |HAVING
+        |  SUM(clicks) > 0
       """.stripMargin
     ),
 

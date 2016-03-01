@@ -11,11 +11,11 @@ trait SQLParser {
 
 object SQL99Parser {
   val keywords = Set(
-    "all", "and", "as", "asc", "between", "boolean", "by", "case", "cast", "count", "cube",
-    "date", "datetime", "decimal", "desc", "distinct", "else", "end", "exists", "false", "from", "group", "grouping",
-    "in", "inner", "integer", "is", "join", "left", "like",
-    "not", "null", "numeric", "on", "or", "order", "outer", "real", "right", "rollup", "select",
-    "sets", "then", "timestamp", "true", "union", "unknown", "varchar", "when", "where"
+    "all", "and", "as", "asc", "between", "by", "case", "cast", "cross", "cube",
+    "desc", "distinct", "else", "end", "exists", "false", "from", "full", "group", "grouping",
+    "having", "in", "inner", "is", "join", "left", "like",
+    "not", "null", "on", "or", "order", "outer", "right", "rollup", "select",
+    "sets", "then", "true", "union", "unknown", "when", "where"
   )
 
   val delimiters = Set(
@@ -31,7 +31,9 @@ object SQL99Parser {
     "<>", ">=", "<=",
     "||", "->", "=>"
   )
-  val comparisonOperators = Set("=", "<>", "<", ">", ">=", "<=", "like")
+  val comparisonOperators = Set("=", "<>", "<", ">", ">=", "<=")
+
+  val likeOperators = Set("like")
 
   val orOperators = Set("or")
 
@@ -130,11 +132,6 @@ class SQL99Parser extends SQLParser with TokenParsers with PackratParsers {
   lazy val ident =
     elem("ident", _.isInstanceOf[lexical.Identifier]) ^^ (_.chars)
 
-  lazy val identOrKeyword =
-    ( ident
-    | elem("keyword", _.isInstanceOf[lexical.Keyword]) ^^ (_.chars)
-    )
-
   lazy val booleanLiteral =
     ( "true"    ^^^ TrueLiteral
     | "false"   ^^^ FalseLiteral
@@ -162,10 +159,8 @@ class SQL99Parser extends SQLParser with TokenParsers with PackratParsers {
     )
   )
 
-  lazy val typeLiteral =
-    (typeMap.map { case (typeName, typeType) =>
-      typeName ^^^ typeType
-    } ++ Seq(failure("type expected"))).reduceLeft(_ | _)
+  lazy val typeLiteral: Parser[TypeLiteral] =
+    elem("type literal", { t => typeMap.contains(t.chars.toLowerCase) }) ^^ { t => typeMap(t.chars.toLowerCase) }
 
   val typeMap = SQL99Parser.typeMap
 
@@ -182,7 +177,10 @@ class SQL99Parser extends SQLParser with TokenParsers with PackratParsers {
     )
 
   lazy val function =
-    identOrKeyword ~ ("(" ~> opt(distinct) ~ repsep(expr, ",") <~ ")") ^^ { case n ~ (d ~ a) => FunctionCallExpression(n.toLowerCase, d, a) }
+    ident ~ ("(" ~> opt(distinct) ~ repsep(expr, ",") <~ ")") ^^ { case n ~ (d ~ a) => FunctionCallExpression(n.toLowerCase, d, a) }
+
+  lazy val countStar =
+    elem("count", _.chars.toLowerCase == "count") ~ "(" ~ "*" ~ ")" ^^^ CountStarExpression
 
   lazy val or = (precExpr: Parser[Expression]) =>
     precExpr *
@@ -211,9 +209,17 @@ class SQL99Parser extends SQLParser with TokenParsers with PackratParsers {
 
   lazy val comparator = (precExpr: Parser[Expression]) =>
     precExpr *
-    comparisonOperators.map{ op => op ^^^ ComparisonExpression.operator(op)_ }.reduce(_ | _)
+    comparisonOperators.map { op => op ^^^ ComparisonExpression.operator(op)_ }.reduce(_ | _)
 
   val comparisonOperators = SQL99Parser.comparisonOperators
+
+  lazy val like = (precExpr: Parser[Expression]) =>
+    precExpr *
+    likeOperators.map { op =>
+      opt("not") <~ op ^^ { case o => LikeExpression.operator(op, o.isDefined)_ }
+    }.reduce(_ | _)
+
+  val likeOperators = SQL99Parser.likeOperators
 
   lazy val between = (precExpr: Parser[Expression]) =>
     precExpr ~ rep(opt("not") ~ ("between" ~> precExpr ~ ("and" ~> precExpr))) ^^ {
@@ -283,6 +289,7 @@ class SQL99Parser extends SQLParser with TokenParsers with PackratParsers {
   lazy val simpleExpr = (_: Parser[Expression]) =>
     ( literal                ^^ LiteralExpression
     | function
+    | countStar
     | cast
     | caseWhen
     | column                 ^^ ColumnExpression
@@ -302,6 +309,7 @@ class SQL99Parser extends SQLParser with TokenParsers with PackratParsers {
     :: between0
     :: between
     :: comparator
+    :: like
     :: exists
     :: not
     :: and
@@ -358,8 +366,10 @@ class SQL99Parser extends SQLParser with TokenParsers with PackratParsers {
 
   lazy val join =
     ( opt("inner") ~ "join"             ^^^ InnerJoin
-    | "left" ~ opt("outer") ~ "join"    ^^^ LeftJoin
+    | "left"  ~ opt("outer") ~ "join"   ^^^ LeftJoin
     | "right" ~ opt("outer") ~ "join"   ^^^ RightJoin
+    | "full"  ~ opt("outer") ~ "join"   ^^^ FullJoin
+    | "cross" ~ "join"                  ^^^ CrossJoin
     )
 
   lazy val joinRelation =
@@ -390,6 +400,9 @@ class SQL99Parser extends SQLParser with TokenParsers with PackratParsers {
   lazy val groupBy =
     ("group" ~ "by") ~> repsep(group, ",")
 
+  lazy val having =
+    "having" ~> expr
+
   lazy val sortOrder =
     ( "asc"  ^^^ SortASC
     | "desc" ^^^ SortDESC
@@ -407,19 +420,20 @@ class SQL99Parser extends SQLParser with TokenParsers with PackratParsers {
     )
 
   lazy val unionSelect: Parser[UnionSelect] =
-    statement ~ ("union" ~> opt(distinct)) ~ statement ^^ {
+    select ~ ("union" ~> opt(distinct)) ~ select ^^ {
       case l ~ d ~ r => UnionSelect(l, d, r)
     }
 
   lazy val simpleSelect: Parser[SimpleSelect] =
-    "select" ~> opt(distinct) ~ rep1sep(projections, ",") ~ opt(relations) ~ opt(filters) ~ opt(groupBy) ~ opt(orderBy) ^^ {
-      case d ~ p ~ r ~ f ~ g ~ o => SimpleSelect(d, p, r.getOrElse(Nil), f, g.getOrElse(Nil), o.getOrElse(Nil))
+    "select" ~> opt(distinct) ~ rep1sep(projections, ",") ~ opt(relations) ~ opt(filters) ~ opt(groupBy) ~ opt(having) ~ opt(orderBy) ^^ {
+      case d ~ p ~ r ~ f ~ g ~ h ~ o => SimpleSelect(d, p, r.getOrElse(Nil), f, g.getOrElse(Nil), h, o.getOrElse(Nil))
     }
 
-  lazy val select: PackratParser[Select] =
+  lazy val select: PackratParser[Select] = pos(
     ( unionSelect
     | simpleSelect
     )
+  )
 
   lazy val statement = pos(
     ( select
