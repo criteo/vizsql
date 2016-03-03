@@ -407,7 +407,10 @@ case class NotExpression(expression: Expression) extends Expression {
 }
 
 case class IsExpression(expression: Expression, not: Boolean, literal: Literal) extends Expression {
-  def getPlaceholders(db: DB, expectedType: Option[Type]) = expression.getPlaceholders(db, Some(literal.mapType))
+  def getPlaceholders(db: DB, expectedType: Option[Type]) = literal match {
+    case NullLiteral => expression.getPlaceholders(db, None)
+    case l => expression.getPlaceholders(db, Some(l.mapType))
+  }
   def resultType(db: DB, placeholders: Placeholders) = for {
     exprType <- expression.resultType(db, placeholders).right
   } yield {

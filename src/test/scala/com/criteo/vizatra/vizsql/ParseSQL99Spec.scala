@@ -48,6 +48,51 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
+    ("""SELECT 1e-8""", SimpleSelect(
+      projections = List(
+        ExpressionProjection(
+          LiteralExpression(DecimalLiteral(1e-8)),
+          alias = None
+        )
+      )
+    )),
+
+    ("""SELECT 1.""", SimpleSelect(
+      projections = List(
+        ExpressionProjection(
+          LiteralExpression(DecimalLiteral(1.)),
+          alias = None
+        )
+      )
+    )),
+
+    ("""SELECT .1""", SimpleSelect(
+      projections = List(
+        ExpressionProjection(
+          LiteralExpression(DecimalLiteral(.1)),
+          alias = None
+        )
+      )
+    )),
+
+    ("""SELECT .1e2""", SimpleSelect(
+      projections = List(
+        ExpressionProjection(
+          LiteralExpression(DecimalLiteral(.1e2)),
+          alias = None
+        )
+      )
+    )),
+
+    ("""SELECT 1.0E-8""", SimpleSelect(
+      projections = List(
+        ExpressionProjection(
+          LiteralExpression(DecimalLiteral(1.0E-8)),
+          alias = None
+        )
+      )
+    )),
+
     ("""select null""", SimpleSelect(
       projections = List(
         ExpressionProjection(

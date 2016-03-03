@@ -45,7 +45,7 @@ object SQL99Parser {
 
   val unaryOperators = Set("-", "+")
 
-  val typeMap = Map(
+  val typeMap: Map[String, TypeLiteral] = Map(
     "timestamp" -> TimestampTypeLiteral,
     "datetime"  -> TimestampTypeLiteral,
     "date"      -> DateTypeLiteral,
@@ -96,10 +96,14 @@ class SQL99Parser extends SQLParser with TokenParsers with PackratParsers {
 
     def customToken: Parser[Token] = elem("should not exist", _ => false) ^^ { _ => sys.error("custom token should not exist")}
 
+    lazy val exp = (accept('e') | accept('E')) ~ opt('-') ~ rep1(digit) ^^ { case e ~ n ~ d => e.toString + n.mkString + d.mkString}
+
     lazy val token =
       ( customToken
       | identifierOrKeyword
-      | rep1(digit) ~ ('.' ~> rep1(digit) )             ^^ { case i ~ d => DecimalLit(i.mkString + "." + d.mkString) }
+      | rep1(digit) ~ ('.' ~> rep(digit)) ~ opt(exp)    ^^ { case i ~ d ~ mE => DecimalLit(i.mkString + "." + d.mkString + mE.mkString) }
+      | rep1(digit) ~ exp                               ^^ { case i ~ e => DecimalLit(i.mkString + e) }
+      | '.' ~> rep1(digit) ~ opt(exp)                   ^^ { case d ~ mE => DecimalLit("." + d.mkString + mE.mkString) }
       | rep1(digit)                                     ^^ { case i => IntegerLit(i.mkString) }
       | '\'' ~ rep(chrExcept('\'', '\n', EofCh)) ~ '\'' ^^ { case '\'' ~ chars ~ '\'' => StringLit(chars mkString "") }
       | '\"' ~ rep(chrExcept('\"', '\n', EofCh)) ~ '\"' ^^ { case '\"' ~ chars ~ '\"' => Identifier(chars mkString "") }
