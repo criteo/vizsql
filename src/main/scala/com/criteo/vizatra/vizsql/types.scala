@@ -82,3 +82,73 @@ case class RANGE(of: Type) extends Type {
   }
   def show = s"range(${of.show})"
 }
+
+object Type {
+  case class MissingParameter(err: Err) extends Throwable
+
+  def convertParamList(parameters: Map[String, Any], query : Query) = query.placeholders.right.map { placeholders =>
+    for {
+      (name, value) <- parameters
+      typ <- placeholders.typeOf(Placeholder(Some(name)))
+    } yield {
+      name -> convertParam(typ, value)
+    }
+  }
+
+  def convertParam(pType : Type, value : Any) : FilledParameter = pType match {
+    case STRING(_) => value match {
+      case x :: _ => convertParam(pType, x)
+      case s: String => StringParameter(s)
+      case x => throw new MissingParameter(ParameterError(
+        s"unexpected value $x (${x.getClass.getName}) for an SQL STRING parameter", -1
+      ))
+    }
+    case INTEGER(_) => value match {
+      case x :: _ => convertParam(pType, x)
+      case x: Int => IntegerParameter(x)
+      case x: Long => IntegerParameter(x.toInt)
+      case x: String => try {
+        IntegerParameter(x.toInt)
+      } catch {
+        case _: Throwable => throw new MissingParameter(ParameterError(
+          s"unexpected value $x (${x.getClass.getName}) for an SQL INTEGER parameter", -1
+        ))
+      }
+      case x => throw new MissingParameter(ParameterError(
+        s"unexpected value $x (${x.getClass.getName}) for an SQL INTEGER parameter", -1
+      ))
+    }
+    case DATE(_) => value match {
+      case x :: _ => convertParam(pType, x)
+      case x: String => DateTimeParameter(x)
+      case x => throw new MissingParameter(ParameterError(
+        s"unexpected value $x (${x.getClass.getName}) for an SQL DATE parameter", -1
+      ))
+    }
+    case TIMESTAMP(_) => value match {
+      case x :: _ => convertParam(pType, x)
+      case x: String => DateTimeParameter(x)
+      case x => throw new MissingParameter(ParameterError(
+        s"unexpected value $x (${x.getClass.getName}) for an SQL TIMESTAMP parameter", -1
+      ))
+    }
+    case SET(t) => value match {
+      case x: Seq[_] => SetParameter(x.map(x =>convertParam(t, x)).toSet)
+      case x => SetParameter(Set(convertParam(t, x)))
+    }
+    case RANGE(t) => value match {
+      case (a,b) => RangeParameter(convertParam(t, a) ,convertParam(t, b))
+      case a :: b :: _ => RangeParameter(convertParam(t, a), convertParam(t, b))
+      case x => throw new MissingParameter(ParameterError(
+        s"unexpected value $x (${x.getClass.getName}) for an SQL RANGE parameter", -1
+      ))
+    }
+  }
+
+}
+trait FilledParameter
+case class DateTimeParameter(value : String) extends FilledParameter
+case class SetParameter(value : Set[FilledParameter]) extends FilledParameter
+case class RangeParameter(low : FilledParameter, High : FilledParameter) extends FilledParameter
+case class StringParameter(value : String) extends FilledParameter
+case class IntegerParameter(value : Int) extends FilledParameter
