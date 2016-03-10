@@ -1,8 +1,5 @@
 package com.criteo.vizatra.vizsql
 
-import java.sql.{Timestamp, Date}
-import java.text.SimpleDateFormat
-
 sealed trait Case { def format(str: String): String }
 case object UpperCase extends Case { def format(str: String) = str.toUpperCase }
 case object LowerCase extends Case { def format(str: String) = str.toLowerCase }
@@ -61,19 +58,57 @@ object Show {
       case Parameter(placeholder) =>
         placeholders.map {
           case (placeholders, namedParameters, anonymousParameters) =>
-            def param(paramType: Option[Type], value: Any): String = paramType.map( x => Type.convertParam(x, value)).map { x =>
-              def rec(value: Any) : String = value match {
+            def param(paramType: Option[Type], value: Any): String = paramType.map {
+              case STRING(_) => value match {
+                case x :: _ => param(paramType, x)
                 case s: String => s"'${value.toString.replace("'", "''")}'"
-                case x: Int => x.toString
-                case t: Timestamp => s"'${new SimpleDateFormat("yyyy-MM-dd hh:mm:ss").format(t)}'"
-                case d: Date => s"'${new SimpleDateFormat("yyyy-MM-dd").format(d)}'"
-                case x: Set[_] => "(" + x.map(rec).mkString(", ") + ")"
-                case (low, high) => rec(low) + " AND " + rec(high)
-                case x => throw new IllegalArgumentException(x.getClass.toString)
+                case x => throw new MissingParameter(ParameterError(
+                  s"unexpected value $x (${x.getClass.getName}) for an SQL STRING parameter", placeholder.pos
+                ))
               }
-              rec(x)
-            }
-              .getOrElse {
+              case INTEGER(_) => value match {
+                case x :: _ => param(paramType, x)
+                case x: Int => x.toString
+                case x: Long => x.toInt.toString
+                case x: String => try {
+                  x.toInt.toString
+                } catch {
+                  case _: Throwable => throw new MissingParameter(ParameterError(
+                    s"unexpected value $x (${x.getClass.getName}) for an SQL INTEGER parameter", placeholder.pos
+                  ))
+                }
+                case x => throw new MissingParameter(ParameterError(
+                  s"unexpected value $x (${x.getClass.getName}) for an SQL INTEGER parameter", placeholder.pos
+                ))
+              }
+              case DATE(_) => value match {
+                case x :: _ => param(paramType, x)
+                case x: String => s"'${value.toString.replace("'", "''")}'"
+                case x => throw new MissingParameter(ParameterError(
+                  s"unexpected value $x (${x.getClass.getName}) for an SQL DATE parameter", placeholder.pos
+                ))
+              }
+              case TIMESTAMP(_) => value match {
+                case x :: _ => param(paramType, x)
+                case x: String => s"'${value.toString.replace("'", "''")}'"
+                case x => throw new MissingParameter(ParameterError(
+                  s"unexpected value $x (${x.getClass.getName}) for an SQL TIMESTAMP parameter", placeholder.pos
+                ))
+              }
+              case SET(t) => value match {
+                case x: Seq[_] => "(" + x.map(param(Some(t), _)).mkString(", ") + ")"
+                case x => throw new MissingParameter(ParameterError(
+                  s"unexpected value $x (${x.getClass.getName}) for an SQL SET parameter", placeholder.pos
+                ))
+              }
+              case RANGE(t) => value match {
+                case (a,b) => param(Some(t), a) + " AND " + param(Some(t), b)
+                case a :: b :: _ => param(Some(t), a) + " AND " + param(Some(t), b)
+                case x => throw new MissingParameter(ParameterError(
+                  s"unexpected value $x (${x.getClass.getName}) for an SQL RANGE parameter", placeholder.pos
+                ))
+              }
+            }.getOrElse {
               throw new MissingParameter(ParameterError(
                 "unresolver parameter", placeholder.pos
               ))
