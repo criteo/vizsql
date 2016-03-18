@@ -1,11 +1,8 @@
 package com.criteo.vizatra.vizsql
 
 trait SQLFunction {
-  def getPlaceholders(call: FunctionCallExpression, db: DB, expectedType: Option[Type]) = {
-    call.args.foldRight(Right(Placeholders()):Either[Err,Placeholders]) {
-      (p, acc) => for(a <- acc.right; b <- p.getPlaceholders(db, expectedType).right) yield b ++ a
-    }
-  }
+  def getPlaceholders(call: FunctionCallExpression, db: DB, expectedType: Option[Type]) =
+    Utils.allPlaceholders[Expression](call.args, _.getPlaceholders(db, expectedType))
   def resultType(call: FunctionCallExpression, db: DB, placeholders: Placeholders): Either[Err,Type]
   def getArguments(call: FunctionCallExpression, db: DB, placeholders: Placeholders, nb: Int): Either[Err,List[Type]] = {
     if(nb >= 0 && nb > call.args.size) {

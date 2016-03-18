@@ -296,9 +296,7 @@ case class IsInExpression(left: Expression, not: Boolean, right: List[Expression
     commonParentType(left :: right, db, None).right.flatMap { tl =>
       for {
         leftPlaceholders <- left.getPlaceholders(db, Some(tl)).right
-        rightPlaceholders <- right.foldRight(Right(Placeholders()):Either[Err,Placeholders]) {
-          (p, acc) => for(a <- acc.right; b <- p.getPlaceholders(db, Some(tl)).right) yield b ++ a
-        }.right
+        rightPlaceholders <- allPlaceholders[Expression](right, _.getPlaceholders(db, Some(tl))).right
       } yield {
         leftPlaceholders ++ rightPlaceholders
       }
@@ -447,20 +445,17 @@ case class CastExpression(from: Expression, to: TypeLiteral) extends Expression 
 
 case class CaseWhenExpression(value: Option[Expression], mapping: List[(Expression, Expression)], elseVal: Option[Expression]) extends Expression {
 
-  def getPlaceholders(db: DB, expectedType: Option[Type]) =
-      for {
-        valPlaceholders <- value.map(_.getPlaceholders(db, None)).getOrElse(Right(Placeholders())).right
-        valType <- value.map(_.resultType(db, valPlaceholders)).getOrElse(Right(BOOLEAN(true))).right
-        resultType <- commonParentType(mapping.map(_._2) ++ elseVal, db, expectedType).right
-        mappingPlaceholders <- mapping.foldLeft(Right(Placeholders()): Either[Err, Placeholders]) { case (acc, (cond, res)) =>
-          for {
-            a <- acc.right
-            condPlaceholders <- cond.getPlaceholders(db, Some(valType)).right
-            resPlaceholders <- res.getPlaceholders(db, Some(resultType)).right
-          } yield a ++ condPlaceholders ++ resPlaceholders
-        }.right
-        elsePlaceHolders <- elseVal.map(_.getPlaceholders(db, Some(resultType))).getOrElse(Right(Placeholders())).right
-      } yield valPlaceholders ++ mappingPlaceholders ++ elsePlaceHolders
+  def getPlaceholders(db: DB, expectedType: Option[Type]) = {
+    val conditions = mapping.map(_._1) ++ value
+    val results = mapping.map(_._2) ++ elseVal
+    val expectedConditionType = if (value.isEmpty) Some(BOOLEAN(true)) else None
+    for {
+      cType <- commonParentType(conditions, db, expectedConditionType).right
+      cPlaceholders <- allPlaceholders[Expression](conditions, _.getPlaceholders(db, Some(cType))).right
+      rType <- commonParentType(results, db, expectedType).right
+      rPlaceholders <-  allPlaceholders[Expression](results, _.getPlaceholders(db, Some(rType))).right
+    } yield cPlaceholders ++ rPlaceholders
+  }
   def resultType(db: DB, placeholders: Placeholders) =
     commonParentType(mapping.map(_._2) ++ elseVal, db, None).right.map { t =>
       t.withNullable(t.nullable || elseVal.isEmpty)
@@ -755,12 +750,8 @@ case class SimpleSelect(
     val oo = Right(Placeholders()):Either[Err,Placeholders]
     for {
       db <- getQueryView(db).right
-      projectionsPlaceholders <- projections.foldRight(oo) {
-        (p, acc) => for(a <- acc.right; b <- p.getPlaceholders(db).right) yield b ++ a
-      }.right
-      relationsPlaceholders <- relations.foldRight(oo) {
-        (r, acc) => for(a <- acc.right; b <- r.getPlaceholders(db).right) yield b ++ a
-      }.right
+      projectionsPlaceholders <- allPlaceholders[Projection](projections, _.getPlaceholders(db)).right
+      relationsPlaceholders <- allPlaceholders[Relation](relations, _.getPlaceholders(db)).right
       wherePlaceholders <- where.map(_.getPlaceholders(db, Some(BOOLEAN()))).getOrElse(oo).right
       havingPlaceholders <- having.map(_.getPlaceholders(db, Some(BOOLEAN()))).getOrElse(oo).right
     } yield {
@@ -792,6 +783,11 @@ case class SimpleSelect(
 }
 
 object Utils {
+
+  def allPlaceholders[A](l: List[A], getPlaceholders: A => Either[Err,Placeholders]) =
+    l.foldRight(Right(Placeholders()):Either[Err,Placeholders]) {
+      (el, acc) => for(a <- acc.right; b <- getPlaceholders(el).right) yield b ++ a
+    }
 
   def parentType(a: Type, b: Type, err: => Err): Either[Err, Type] =
     if (a.canBeCastTo(b)) Right(b)
