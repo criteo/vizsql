@@ -66,8 +66,9 @@ case class OlapQuery(query: Query) {
     }
     select <- OlapQuery.rewriteSelect(query.select, query.db, projectionExpressions, selection.filters.keySet ++ selection.parameters.keySet).right
     sql <- select.fillParameters(query.db, selection.parameters ++ selection.filters).right
+    filledQuery <- VizSQL.parseQuery(sql, query.db).right
   } yield {
-    sql
+    Optimizer.optimize(filledQuery).sql
   }
 
   def rewriteMetricAggregate(metric: String): Either[Err,Option[PostAggregate]] = for {
