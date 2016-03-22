@@ -426,10 +426,10 @@ case class ExistsExpression(select: Select) extends Expression {
 }
 
 case class SubSelectExpression(select: Select) extends Expression {
-  def getPlaceholders(db: DB, expectedType: Option[Type]) = ???
+  def getPlaceholders(db: DB, expectedType: Option[Type]) = select.getPlaceholders(db)
   def resultType(db: DB, placeholders: Placeholders) = ???
   def show = "(" ~| (select.show) ~ ")"
-  def visit = ???
+  def visit = Nil
 }
 
 case class CastExpression(from: Expression, to: TypeLiteral) extends Expression {
