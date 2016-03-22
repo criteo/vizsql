@@ -51,8 +51,16 @@ class OptimizeSpec extends FlatSpec with Matchers {
       |f.country,
       |f.date,
       |c.comment
-      |FROM facts as f
-      |JOIN
+      |FROM facts AS f
+      |JOIN review AS c ON f.idfacts = c.idfacts AND 2 > 3
+    """.stripMargin
+
+  val SUB_QUERY=
+    """SELECT
+      |x.result,
+      |(SELECT comment FROM review WHERE idfacts = 42 AND (2 + 2 = 4)) AS comment
+      |FROM (SELECT (2 + 2) AS result) AS x
+      |WHERE (SELECT 2 = 2)
     """.stripMargin
 
   val testDb = {
@@ -72,8 +80,12 @@ class OptimizeSpec extends FlatSpec with Matchers {
     DB(List(Schema("", List(Table("facts", cols), Table("review", cols2)))))
   }
 
+  val subQuery = VizSQL.parseQuery(SUB_QUERY, testDb)
   val caseQuery = VizSQL.parseQuery(CASE_QUERY, testDb)
   val opQuery =  VizSQL.parseQuery(OPERATOR_QUERY, testDb)
+  val joinQuery = VizSQL.parseQuery(JOIN_QUERY, testDb)
+
+  val queries = List(subQuery, caseQuery, opQuery, joinQuery)
 
   "The Optimizer" should "Simplify \"CASE\" statements" in {
     caseQuery should be a 'right
@@ -122,10 +134,13 @@ class OptimizeSpec extends FlatSpec with Matchers {
   }
 
   it should "be idempotent" in {
-    val query = caseQuery.right.get
-    val optimized = Optimizer.optimize(query)
-    val superOptimized = Optimizer.optimize(optimized)
-    superOptimized should be (optimized)
+    for {q <- queries } {
+      q should be a 'right
+      val query = q.right.get
+      val optimized = Optimizer.optimize(query)
+      val superOptimized = Optimizer.optimize(optimized)
+      superOptimized should be(optimized)
+    }
   }
 
   it should "remove unnecessary tables" in {
@@ -141,6 +156,22 @@ class OptimizeSpec extends FlatSpec with Matchers {
     val query = VizSQL.parseQuery(QUERY, testDb).right.get
     val ref = VizSQL.parseQuery(expected, testDb).right.get
     Optimizer.optimize(query).sql should be (ref.select.toSQL)
+    val QUERY2 =
+      """SELECT
+        |r.comment,
+        |3.0 / 2
+        |FROM facts as f
+        |JOIN review as r ON r.idfact = f.idfact
+      """.stripMargin
+    val expected2 =
+      """SELECT
+        |r.comment,
+        |1.5
+        |FROM review as r
+      """.stripMargin
+    val query2 = VizSQL.parseQuery(QUERY2, testDb).right.get
+    val ref2 = VizSQL.parseQuery(expected2, testDb).right.get
+    Optimizer.optimize(query2).sql should be (ref2.select.toSQL)
   }
 
   it should "rewrite sons of expressions it can't optimize" in {
@@ -161,6 +192,32 @@ class OptimizeSpec extends FlatSpec with Matchers {
     Optimizer.optimize(query).sql should be (ref.select.toSQL)
   }
 
-  it should "optimize joins" in {}
+  it should "optimize joins" in {
+    val expected =
+      """SELECT
+        |f.region,
+        |f.country,
+        |f.date,
+        |c.comment
+        |FROM facts AS f
+        |JOIN review AS c ON f.idfacts = c.idfacts AND FALSE
+      """.stripMargin
+    val query = joinQuery.right.get
+    val expectedQ = VizSQL.parseQuery(expected, testDb).right.get
+    Optimizer.optimize(query).sql should be (expectedQ.select.toSQL)
+  }
+
+  it should "handle Subselect" in {
+    val expected =
+      """SELECT
+        |x.result,
+        |(SELECT comment FROM review WHERE idfacts = 42 AND TRUE) AS comment
+        |FROM (SELECT 4 AS result) AS x
+        |WHERE (SELECT TRUE)
+      """.stripMargin
+    val query = subQuery.right.get
+    val expectedQ = VizSQL.parseQuery(expected, testDb).right.get
+    Optimizer.optimize(query).sql should be (expectedQ.select.toSQL)
+  }
 
 }

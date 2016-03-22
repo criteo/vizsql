@@ -1,18 +1,14 @@
 package com.criteo.vizatra.vizsql
 
-object Optimizer {
-  def optimize(query : Query) : Query = {
-    val sel = optimize(query.select, query.db)
-    Query(sel.toSQL, sel, query.db)
-  }
+class Optimizer(db : DB) {
 
-  def optimize(sel : SimpleSelect, db : DB) : SimpleSelect = {
+  def optimize(sel : SimpleSelect) : SimpleSelect = {
     val newWhere = sel.where.map(preEvaluate)
     val newProj = sel.projections.map {
       case ExpressionProjection(exp, alias) => ExpressionProjection(preEvaluate(exp), alias)
       case x => x
     }
-    val newRel = sel.relations.map(optimize)
+    val newRel = sel.relations.map(apply)
     val newOrder = sel.orderBy.map {case SortExpression(exp, ord) => SortExpression(preEvaluate(exp), ord) }
     val sel2 = SimpleSelect(sel.distinct, newProj, newRel, newWhere,sel.groupBy, sel.having ,newOrder)
     val tables = (sel2.projections.collect {case ExpressionProjection(exp, _) => exp} ++ sel2.where.toList).foldRight(Right(Nil):Either[Err,List[String]]) {
@@ -21,8 +17,14 @@ object Optimizer {
     SimpleSelect(sel2.distinct, sel2.projections, OlapQuery.rewriteRelations(sel2, db,tables.toSet), sel2.where, sel2.groupBy, sel2.having, sel2.orderBy)
   }
 
-  def optimize(relation: Relation) : Relation  = relation match {
-    case JoinRelation(left, join, right, on) => JoinRelation(optimize(left), join, optimize(right), on.map(preEvaluate))
+  def apply(select : Select) : Select = select match {
+    case sel : SimpleSelect => optimize(sel)
+    case UnionSelect(left, distinct, right) => UnionSelect(this.apply(left), distinct, apply(right))
+  }
+
+  def apply(relation: Relation) : Relation  = relation match {
+    case JoinRelation(left, join, right, on) => JoinRelation(apply(left), join, apply(right), on.map(preEvaluate))
+    case SubSelectRelation(select, alias) => SubSelectRelation(apply(select), alias)
     case x => x
   }
 
@@ -93,8 +95,16 @@ object Optimizer {
         case (Left(l), Left(r)) if l == r && !not=> Left(TrueLiteral)
         case (l, r) => Right(LikeExpression(convert(l), not, op, convert(r)))
       }
+      case SubSelectExpression(select) => Right(SubSelectExpression(apply(select)))
       case _ => Right(expr)
     }
     convert(rec(expr))
+  }
+}
+
+object Optimizer {
+  def optimize(query : Query) : Query = {
+    val sel = new Optimizer(query.db).optimize(query.select)
+    Query(sel.toSQL, sel, query.db)
   }
 }
