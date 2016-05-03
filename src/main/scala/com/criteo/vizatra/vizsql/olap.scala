@@ -102,7 +102,7 @@ object OlapQuery {
           orderBy <- Right(s.orderBy.filter(f => keepProjections.map(_.expression).contains(f.expression))).right
           where <- Right(rewriteWhereCondition(s, availableParams)).right
           groupBy <- Right(rewriteGroupBy(s, keepProjections.map(_.expression))).right
-          tables <- (keepProjections.map(_.expression) ++ where.toList).foldRight(Right(Nil):Either[Err,List[String]]) {
+          tables <- (keepProjections.filter(s.projections.contains).map(_.expression) ++ where.toList).foldRight(Right(Nil):Either[Err,List[String]]) {
             (p, acc) => for(a <- acc.right; b <- tablesFor(s, db, p).right) yield b ++ a
           }.right
           from <- Right(rewriteRelations(s, db, tables.toSet)).right
