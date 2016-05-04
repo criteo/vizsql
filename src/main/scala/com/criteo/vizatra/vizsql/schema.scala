@@ -18,10 +18,10 @@ case class Schemas(schemas: List[Schema]) {
   }
 
   def getNonAmbiguousColumn(name: String): Either[String,(Schema,Table,Column)] = {
-    schemas.flatMap(s => s.getNonAmbiguousColumn(name).right.toOption.map { case (t,c) => (s,t,c) }) match {
+    schemas.map(s => s.getNonAmbiguousColumn(name).right.map { case (t,c) => (s,t,c) }) match {
       case Nil => Left(s"column not found $name")
-      case col :: Nil => Right(col)
-      case _ => Left(s"ambiguous column $name")
+      case Right(col) :: Nil => Right(col)
+      case Left(err) :: _ => Left(err)
     }
   }
 }
