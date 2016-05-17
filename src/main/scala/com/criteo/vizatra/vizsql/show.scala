@@ -58,7 +58,7 @@ object Show {
       case Parameter(placeholder) =>
         placeholders.map {
           case (placeholders, namedParameters, anonymousParameters) =>
-            def param(paramType: Option[Type], value: Any): String = paramType.map { x =>
+            def param(paramType: Option[Type], value: Any): String = paramType.map { p =>
               def rec(value: FilledParameter) : String = value match {
                 case StringParameter(s) => s"'${s.replace("'", "''")}'"
                 case IntegerParameter(x) => x.toString
@@ -67,18 +67,18 @@ object Show {
                 case RangeParameter(low, high) => rec(low) + " AND " + rec(high)
                 case x => throw new IllegalArgumentException(x.getClass.toString)
               }
-              rec(Type.convertParam(x, value))
+              rec(Type.convertParam(p, value))
             }
               .getOrElse {
               throw new MissingParameter(ParameterError(
-                "unresolver parameter", placeholder.pos
+                "unresolved parameter", placeholder.pos
               ))
             }
             placeholder.name match {
               case Some(key) if namedParameters.contains(key) =>
                 parts ++ (param(placeholders.find(_._1.name.exists(_ == key)).map(_._2), namedParameters(key)) :: Nil)
               case None if pIndex < anonymousParameters.size =>
-                val s = param(placeholders.filter(_._1.name.isDefined).drop(pIndex).headOption.map(_._2), anonymousParameters(pIndex))
+                val s = param(placeholders.filterNot(_._1.name.isDefined).drop(pIndex).headOption.map(_._2), anonymousParameters(pIndex))
                 pIndex = pIndex + 1
                 parts ++ (s :: Nil)
               case x =>
