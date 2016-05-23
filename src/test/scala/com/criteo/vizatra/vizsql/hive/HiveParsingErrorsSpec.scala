@@ -3,7 +3,7 @@ package com.criteo.vizatra.vizsql.hive
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{EitherValues, Matchers, PropSpec}
 
-class ParsingErrorsSpec extends PropSpec with Matchers with EitherValues {
+class HiveParsingErrorsSpec extends PropSpec with Matchers with EitherValues {
 
   val invalidSQL99SelectStatements = TableDrivenPropertyChecks.Table(
     ("SQL", "Expected error"),

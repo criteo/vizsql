@@ -19,9 +19,9 @@ case class Schemas(schemas: List[Schema]) {
 
   def getNonAmbiguousColumn(name: String): Either[String,(Schema,Table,Column)] = {
     schemas.map(s => s.getNonAmbiguousColumn(name).right.map { case (t,c) => (s,t,c) }) match {
-      case Nil => Left(s"column not found $name")
       case Right(col) :: Nil => Right(col)
       case Left(err) :: _ => Left(err)
+      case _ => Left(s"column not found $name")
     }
   }
 }

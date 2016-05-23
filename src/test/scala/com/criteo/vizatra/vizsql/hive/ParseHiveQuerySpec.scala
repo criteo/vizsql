@@ -4,7 +4,7 @@ import com.criteo.vizatra.vizsql._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{Matchers, PropSpec}
 
-class ParseQuerySpec extends PropSpec with Matchers {
+class ParseHiveQuerySpec extends PropSpec with Matchers {
   val queries = TableDrivenPropertyChecks.Table(
     ("Valid Hive query", "Expected AST"),
 

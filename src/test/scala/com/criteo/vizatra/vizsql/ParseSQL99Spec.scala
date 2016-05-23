@@ -60,7 +60,7 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
     ("""SELECT 1.""", SimpleSelect(
       projections = List(
         ExpressionProjection(
-          LiteralExpression(DecimalLiteral(1.)),
+          LiteralExpression(DecimalLiteral(1.0)),
           alias = None
         )
       )

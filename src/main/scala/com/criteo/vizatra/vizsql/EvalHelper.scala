@@ -10,13 +10,13 @@ object EvalHelper {
     case "+" => num.plus(x, y)
     case "-" => num.minus(x, y)
     case "*" => num.times(x, y)
-    //Numeric doesn't handle division
+    // Numeric doesn't handle division
   }
 
   val ops = Set("+", "-", "*")
 
   def mathEval(op : String, x : Literal, y : Literal) : Either[Literal, Expression] = (x, y) match {
-    case (DecimalLiteral(a), DecimalLiteral(b)) if op == "/"  && (b != 0) => Left(DecimalLiteral(a / b))
+    case (DecimalLiteral(a), DecimalLiteral(b)) if op == "/" && (b != 0) => Left(DecimalLiteral(a / b))
     case (IntegerLiteral(a), DecimalLiteral(b)) if op == "/" && (b != 0) =>  Left(DecimalLiteral(a / b))
     case (DecimalLiteral(a), IntegerLiteral(b)) if op == "/" && (b != 0) => Left(DecimalLiteral(a / b))
     case (IntegerLiteral(a), IntegerLiteral(b)) if op == "/" && (b != 0) && (a % b == 0) => Left(IntegerLiteral(a/b))
@@ -44,7 +44,7 @@ object EvalHelper {
   }
 
   def compare[T<: Any](v1 : T, v2: T) : Int = (v1, v2) match {
-    case (x : Ordered[T], y : T) => x compareTo y
+    case (x : Ordered[_], y) => x.asInstanceOf[Ordered[Any]] compareTo y.asInstanceOf[Any]
     case (x : Number, y : Number) => x.doubleValue().compare(y.doubleValue())
     case (x : String, y : String) => x.compare(y)
     case (x : Date, y: Date) => x compareTo y

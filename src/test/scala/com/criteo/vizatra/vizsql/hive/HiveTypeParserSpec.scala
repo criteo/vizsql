@@ -4,7 +4,7 @@ import com.criteo.vizatra.vizsql._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{Matchers, PropSpec}
 
-class TypeParserSpec extends PropSpec with Matchers {
+class HiveTypeParserSpec extends PropSpec with Matchers {
 
   val types = TableDrivenPropertyChecks.Table(
     ("Type string", "Expected type"),

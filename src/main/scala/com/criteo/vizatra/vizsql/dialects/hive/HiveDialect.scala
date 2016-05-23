@@ -275,7 +275,7 @@ case class HiveDialect(udfs: Map[String, SQLFunction]) extends Dialect {
           case l if l.length % 2 == 0 =>
             val cols = l.grouped(2).toList.map {
               case (LiteralExpression(StringLiteral(name)), _) :: (_, t) :: Nil => Column(name, t)
-              case (x, _) :: _ => sys.error(s"Unsupported expression in named_struct: $x")
+              case x => sys.error(s"Unsupported expression in named_struct: $x")
             }
             Right(HiveStruct(cols))
         }
