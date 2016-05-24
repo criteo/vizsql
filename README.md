@@ -2,11 +2,11 @@
 
 ## VizSQL is a SQL parser & typer for scala
 
-VizSQL provides support for parsing SQL statement into a scala AST. This AST can then be used to support many interesting transformations. We provide for example a static optimizer and an OLAP queries rewritter. It also support typing the query to retriev the resultset columns returned by a SQL statement.
+VizSQL provides support for parsing SQL statements into a scala AST. This AST can then be used to support many interesting transformations. We provide for example a static optimizer and an OLAP query rewriter. It also support typing the query to retrieve the resultset columns returned by a SQL statement.
 
 ### tl;dr
 
-Here we use VizSQL to parse an SQL SELECT statement based on the SAKILA database, and to retrieve the columns name and types of the returned resultset.
+Here we use VizSQL to parse a SQL SELECT statement based on the SAKILA database, and to retrieve the column names and types of the returned resultset.
 
 ```scala
 import com.criteo.vizatra.vizsql
@@ -23,7 +23,7 @@ val resultColumns =
 assert(
   resultColumns == List(
     Column("country_id", INTEGER(nullable = false)),
-    Column("updated", TIMESTAMP(nullable = false))
+    Column("updated", TIMESTAMP(nullable = true))
   )
 )
 ```
@@ -39,9 +39,9 @@ val SAKILA = DB(schemas = List(
         "City",
         columns = List(
           Column("city_id", INTEGER(nullable = false)),
-          Column("city", STRING(nullable = false)),
+          Column("city", STRING(nullable = true)),
           Column("country_id", INTEGER(nullable = false)),
-          Column("last_update", TIMESTAMP(nullable = false))
+          Column("last_update", TIMESTAMP(nullable = true))
         )
       )
     )
