@@ -19,7 +19,6 @@ src/main/webapp/node_modules/
 src/main/webapp/lib/
 src/main/resources/public/
 *.bower.json
-build.sbt
 dependency-reduced-pom.xml
 *.swp
 .devsettings
