@@ -84,6 +84,7 @@ object DB {
               }
               typ <- col.get("type_name").map(_.toString.toLowerCase).collect {
                 case "varchar" | "char" | "bpchar" => STRING(nullable)
+                case x if x.contains("varchar") => STRING(nullable)
                 case "int4" | "integer" => INTEGER(nullable)
                 case "float" | "float4" | "numeric" => DECIMAL(nullable)
                 case "timestamp" | "timestamptz" | "timestamp with time zone" => TIMESTAMP(nullable)

@@ -43,6 +43,14 @@ trait SQLFunction2 extends SQLFunction {
   def result: PartialFunction[((Expression,Type),(Expression,Type)),Either[Err,Type]]
 }
 
+trait SQLFunction3 extends SQLFunction {
+  def resultType(call: FunctionCallExpression, db: DB, placeholders: Placeholders) =
+    getArguments(call, db, placeholders, 3).right.flatMap { types =>
+      result((call.args(0) -> types(0), call.args(1) -> types(1), call.args(2) -> types(2)))
+    }
+  def result: PartialFunction[((Expression,Type),(Expression,Type),(Expression,Type)),Either[Err,Type]]
+}
+
 trait SQLFunctionX extends SQLFunction {
   def resultType(call: FunctionCallExpression, db: DB, placeholders: Placeholders) =
     getArguments(call, db, placeholders, -1).right.flatMap { types =>

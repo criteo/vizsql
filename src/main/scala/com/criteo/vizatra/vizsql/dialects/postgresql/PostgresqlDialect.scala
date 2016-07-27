@@ -5,7 +5,7 @@ object postgresql {
     def parser = new SQL99Parser
     val functions = SQLFunction.standard orElse {
       case "date_trunc" => new SQLFunction2 {
-        def result = { case ((_, _), (_, t)) => Right(TIMESTAMP(nullable = t.nullable)) }
+        def result = { case (_, (_, t)) => Right(TIMESTAMP(nullable = t.nullable)) }
       }
       case "zeroifnull" => new SQLFunction1 {
         def result = { case (_, t) => Right(t.withNullable(false)) }
