@@ -6,7 +6,7 @@ import scala.util.parsing.input.CharArrayReader.EofCh
 
 case class HiveDialect(udfs: Map[String, SQLFunction]) extends Dialect {
 
-  def parser = new SQL99Parser {
+  lazy val parser = new SQL99Parser {
     override val lexical = new SQLLexical {
       override val keywords = SQL99Parser.keywords ++ Set(
         "rlike", "regexp", "limit", "lateral", "view", "distribute", "sort", "cluster", "semi",

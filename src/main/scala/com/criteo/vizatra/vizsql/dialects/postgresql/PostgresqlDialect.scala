@@ -2,8 +2,8 @@ package com.criteo.vizatra.vizsql
 
 object postgresql {
   implicit val dialect = new Dialect {
-    def parser = new SQL99Parser
-    val functions = SQLFunction.standard orElse {
+    lazy val parser = new SQL99Parser
+    lazy val functions = SQLFunction.standard orElse {
       case "date_trunc" => new SQLFunction2 {
         def result = { case (_, (_, t)) => Right(TIMESTAMP(nullable = t.nullable)) }
       }
