@@ -118,7 +118,7 @@ class SQL99Parser extends SQLParser with TokenParsers with PackratParsers {
 
   override val lexical = new SQLLexical
 
-  private val tokenParserCache = collection.mutable.HashMap.empty[String,Parser[String]]
+  private val tokenParserCache = collection.concurrent.TrieMap.empty[String,Parser[String]]
   implicit def stringLiteralToKeywordOrDelimiter(chars: String) = {
     if(lexical.keywords.contains(chars) || lexical.delimiters.contains(chars)) {
       tokenParserCache.getOrElseUpdate(

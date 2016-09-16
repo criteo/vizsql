@@ -210,7 +210,7 @@ class ThreadSafetySpec extends FlatSpec with Matchers with EitherValues {
       }
     }
 
-    Await.result(eventuallyResult, 30 seconds).flatten.forall(identity) shouldBe(true)
+    Await.result(eventuallyResult, 1 minute).flatten.forall(identity) shouldBe(true)
   }
 
 }
