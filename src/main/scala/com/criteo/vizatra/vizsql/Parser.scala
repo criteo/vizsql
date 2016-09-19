@@ -98,6 +98,13 @@ class SQL99Parser extends SQLParser with TokenParsers with PackratParsers {
 
     lazy val exp = (accept('e') | accept('E')) ~ opt('-') ~ rep1(digit) ^^ { case e ~ n ~ d => e.toString + n.mkString + d.mkString}
 
+    def quoted(delimiter: Char) =
+      delimiter ~> rep(
+        ( (delimiter ~ delimiter) ^^^ delimiter
+        | chrExcept(delimiter, '\n', EofCh)
+        )
+      ) <~ delimiter
+
     lazy val token =
       ( customToken
       | identifierOrKeyword
@@ -105,11 +112,11 @@ class SQL99Parser extends SQLParser with TokenParsers with PackratParsers {
       | rep1(digit) ~ exp                               ^^ { case i ~ e => DecimalLit(i.mkString + e) }
       | '.' ~> rep1(digit) ~ opt(exp)                   ^^ { case d ~ mE => DecimalLit("." + d.mkString + mE.mkString) }
       | rep1(digit)                                     ^^ { case i => IntegerLit(i.mkString) }
-      | '\'' ~ rep(chrExcept('\'', '\n', EofCh)) ~ '\'' ^^ { case '\'' ~ chars ~ '\'' => StringLit(chars mkString "") }
-      | '\"' ~ rep(chrExcept('\"', '\n', EofCh)) ~ '\"' ^^ { case '\"' ~ chars ~ '\"' => Identifier(chars mkString "") }
+      | quoted('\'')                                    ^^ { case chars => StringLit(chars mkString "") }
+      | quoted('\"')                                    ^^ { case chars => Identifier(chars mkString "") }
       | EofCh                                           ^^^ EOF
       | '\'' ~> failure("unclosed string literal")
-      | '\"' ~> failure("unclosed string literal")
+      | '\"' ~> failure("unclosed identifier")
       | delimiter
       | failure("illegal character")
       )

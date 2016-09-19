@@ -167,6 +167,22 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
       )
     )),
 
+    ("""Select 'L''assiette'""", SimpleSelect(
+      projections = List(
+        ExpressionProjection(
+          LiteralExpression(StringLiteral("L'assiette"))
+        )
+      )
+    )),
+
+    ("""Select "An interesting ""column"""""", SimpleSelect(
+      projections = List(
+        ExpressionProjection(
+          ColumnExpression(ColumnIdent("""An interesting "column""""))
+        )
+      )
+    )),
+
     ("""Select 'Kiki' as name, "Coco" as firstname""", SimpleSelect(
       projections = List(
         ExpressionProjection(
