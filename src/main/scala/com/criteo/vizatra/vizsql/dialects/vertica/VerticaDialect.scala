@@ -7,6 +7,9 @@ object vertica {
       case "datediff" => new SQLFunction3 {
         def result = { case (_, (_, t1), (_, t2)) => Right(INTEGER(nullable = t1.nullable ||t2.nullable)) }
       }
+      case "to_timestamp" => new SQLFunction1 {
+        def result = { case (_, t1) => Right(TIMESTAMP(nullable = t1.nullable)) }
+      }
     }: PartialFunction[String,SQLFunction]
     override def toString = "Vertica"
   }
