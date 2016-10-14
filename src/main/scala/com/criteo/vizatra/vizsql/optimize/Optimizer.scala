@@ -10,11 +10,11 @@ class Optimizer(db : DB) {
     }
     val newRel = sel.relations.map(apply)
     val newOrder = sel.orderBy.map {case SortExpression(exp, ord) => SortExpression(preEvaluate(exp), ord) }
-    val sel2 = SimpleSelect(sel.distinct, newProj, newRel, newWhere,sel.groupBy, sel.having ,newOrder)
+    val sel2 = SimpleSelect(sel.distinct, newProj, newRel, newWhere,sel.groupBy, sel.having, newOrder, sel.limit)
     val tables = (sel2.projections.collect {case ExpressionProjection(exp, _) => exp} ++ sel2.where.toList).foldRight(Right(Nil):Either[Err,List[String]]) {
       (p, acc) => for(a <- acc.right; b <- OlapQuery.tablesFor(sel, db, p).right) yield b ++ a
     }.right.getOrElse(Nil)
-    SimpleSelect(sel2.distinct, sel2.projections, OlapQuery.rewriteRelations(sel2, db,tables.toSet), sel2.where, sel2.groupBy, sel2.having, sel2.orderBy)
+    SimpleSelect(sel2.distinct, sel2.projections, OlapQuery.rewriteRelations(sel2, db,tables.toSet), sel2.where, sel2.groupBy, sel2.having, sel2.orderBy, sel2.limit)
   }
 
   def apply(select : Select) : Select = select match {

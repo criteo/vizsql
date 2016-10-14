@@ -4,7 +4,7 @@ object VizSQL {
 
   def parseQuery(sql: String, db: DB): Either[Err,Query] =
     (db.dialect.parser).parseStatement(sql).right.flatMap {
-      case select @ SimpleSelect(_, _, _, _, _, _, _) => Right(Query(sql, select, db))
+      case select @ SimpleSelect(_, _, _, _, _, _, _, _) => Right(Query(sql, select, db))
       case stmt => Left(SQLError("select expected", stmt.pos))
     }
 

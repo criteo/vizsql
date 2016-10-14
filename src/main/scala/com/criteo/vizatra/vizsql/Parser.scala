@@ -13,7 +13,7 @@ object SQL99Parser {
   val keywords = Set(
     "all", "and", "as", "asc", "between", "by", "case", "cast", "cross", "cube",
     "desc", "distinct", "else", "end", "exists", "false", "from", "full", "group", "grouping",
-    "having", "in", "inner", "is", "join", "left", "like",
+    "having", "in", "inner", "is", "join", "left", "like", "limit",
     "not", "null", "on", "or", "order", "outer", "right", "rollup", "select",
     "sets", "then", "true", "union", "unknown", "when", "where"
   )
@@ -232,6 +232,8 @@ class SQL99Parser extends SQLParser with TokenParsers with PackratParsers {
 
   val likeOperators = SQL99Parser.likeOperators
 
+  lazy val limit = "limit" ~> integerLiteral
+
   lazy val between = (precExpr: Parser[Expression]) =>
     precExpr ~ rep(opt("not") ~ ("between" ~> precExpr ~ ("and" ~> precExpr))) ^^ {
       case l ~ r => r.foldLeft(l) { case (e, n ~ (lb ~ ub)) => IsBetweenExpression(e, n.isDefined, (lb, ub)) }
@@ -436,8 +438,8 @@ class SQL99Parser extends SQLParser with TokenParsers with PackratParsers {
     }
 
   lazy val simpleSelect: Parser[SimpleSelect] =
-    "select" ~> opt(distinct) ~ rep1sep(projections, ",") ~ opt(relations) ~ opt(filters) ~ opt(groupBy) ~ opt(having) ~ opt(orderBy) ^^ {
-      case d ~ p ~ r ~ f ~ g ~ h ~ o => SimpleSelect(d, p, r.getOrElse(Nil), f, g.getOrElse(Nil), h, o.getOrElse(Nil))
+    "select" ~> opt(distinct) ~ rep1sep(projections, ",") ~ opt(relations) ~ opt(filters) ~ opt(groupBy) ~ opt(having) ~ opt(orderBy) ~ opt(limit) ^^ {
+      case d ~ p ~ r ~ f ~ g ~ h ~ o ~ l => SimpleSelect(d, p, r.getOrElse(Nil), f, g.getOrElse(Nil), h, o.getOrElse(Nil), l)
     }
 
   lazy val select: PackratParser[Select] = pos(

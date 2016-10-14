@@ -1057,6 +1057,16 @@ class ParseSQL99Spec extends PropSpec with Matchers with EitherValues with Table
           Some("nb")
         )
       )
+    )),
+
+    ("""select * from country limit 10""", SimpleSelect(
+      projections = List(
+        AllColumns
+      ),
+      relations = List(
+        SingleTableRelation(TableIdent("country"))
+      ),
+      limit = Some(IntegerLiteral(10))
     ))
 
   )

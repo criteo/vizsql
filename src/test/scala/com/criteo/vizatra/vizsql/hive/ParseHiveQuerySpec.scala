@@ -91,7 +91,8 @@ class ParseHiveQuerySpec extends PropSpec with Matchers {
         orderBy = List(
           SortExpression(ColumnOrStructAccessExpression(ColumnIdent("select")), Some(SortDESC)),
           SortExpression(ColumnOrStructAccessExpression(ColumnIdent("from")), None)
-        )
+        ),
+        limit = Some(IntegerLiteral(100))
       )
     ),
     ("select foo from bar tablesample (bucket 2 out of 3 on baz)",

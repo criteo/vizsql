@@ -47,8 +47,6 @@ case class HiveDialect(udfs: Map[String, SQLFunction]) extends Dialect {
       | expressionPlaceholder
       )
 
-    lazy val limit = "limit" ~> integerLiteral
-
     lazy val tablesampleRelation =
       relation <~ "tablesample" ~ "(" ~ tablesampleExpr ~ ")"
 
@@ -102,8 +100,8 @@ case class HiveDialect(udfs: Map[String, SQLFunction]) extends Dialect {
       )
 
     override lazy val simpleSelect: Parser[SimpleSelect] =
-      "select" ~> opt(distinct) ~ rep1sep(projections, ",") ~ opt(relations) ~ opt(filters) ~ opt(groupBy) ~ opt(having) ~ opt(xxxBy) <~ opt(limit) ^^ {
-        case d ~ p ~ r ~ f ~ g ~ h ~ o => SimpleSelect(d, p, r.getOrElse(Nil), f, g.getOrElse(Nil), h, o.getOrElse(Nil))
+      "select" ~> opt(distinct) ~ rep1sep(projections, ",") ~ opt(relations) ~ opt(filters) ~ opt(groupBy) ~ opt(having) ~ opt(xxxBy) ~ opt(limit) ^^ {
+        case d ~ p ~ r ~ f ~ g ~ h ~ o ~ l => SimpleSelect(d, p, r.getOrElse(Nil), f, g.getOrElse(Nil), h, o.getOrElse(Nil), l)
       }
   }
 

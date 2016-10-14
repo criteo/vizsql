@@ -218,7 +218,16 @@ class FormatSQLSpec extends PropSpec with Matchers with EitherValues {
         |SELECT
         |  COUNT(DISTINCT woot)
       """.stripMargin
-    )
+    ),
+
+    (
+      """SELECT 1 LIMIT 10""",
+      """
+        |SELECT
+        |  1
+        |LIMIT 10
+      """.stripMargin
+      )
   )
 
   // --

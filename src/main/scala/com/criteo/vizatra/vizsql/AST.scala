@@ -731,7 +731,8 @@ case class SimpleSelect(
   where: Option[Expression] = None,
   groupBy: List[GroupBy] = Nil,
   having: Option[Expression] = None,
-  orderBy: List[SortExpression] = Nil) extends Select {
+  orderBy: List[SortExpression] = Nil,
+  limit: Option[IntegerLiteral] = None) extends Select {
 
   def getTables(db: DB) = {
     relations.foldRight(Right(Nil):Either[Err,List[(Option[String],Table)]]) {
@@ -779,6 +780,9 @@ case class SimpleSelect(
     Option(orderBy).filterNot(_.isEmpty).map { expressions =>
       keyword("order") ~- keyword("by") ~|
         (join(expressions.map(_.show), "," ~/ ""))
+    } ~
+    limit.map { e =>
+      keyword("limit") ~- e.show
     }
 }
 
