@@ -2,8 +2,6 @@ package com.criteo.vizatra.vizsql
 
 import java.util.Date
 
-import com.criteo.vizatra.vizsql
-
 object EvalHelper {
 
   def applyOp[T](op: String, x : T, y : T)(implicit num : Numeric[T]) : T = op match {

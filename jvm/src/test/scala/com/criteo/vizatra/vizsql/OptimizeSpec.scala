@@ -88,7 +88,7 @@ class OptimizeSpec extends FlatSpec with Matchers {
   val queries = List(subQuery, caseQuery, opQuery, joinQuery)
 
   "The Optimizer" should "Simplify \"CASE\" statements" in {
-    caseQuery should be a 'right
+    caseQuery.isRight shouldBe true
     val expected =
       """SELECT
         |country,
@@ -127,7 +127,7 @@ class OptimizeSpec extends FlatSpec with Matchers {
         |FROM facts
         |WHERE FALSE
       """.stripMargin
-    opQuery should be a 'right
+    opQuery.isRight shouldBe true
     val query = opQuery.right.get
     val expectedQ = VizSQL.parseQuery(expected, testDb).right.get
     Optimizer.optimize(query).sql should be (expectedQ.select.toSQL)
@@ -135,7 +135,7 @@ class OptimizeSpec extends FlatSpec with Matchers {
 
   it should "be idempotent" in {
     for {q <- queries } {
-      q should be a 'right
+      q.isRight shouldBe true
       val query = q.right.get
       val optimized = Optimizer.optimize(query)
       val superOptimized = Optimizer.optimize(optimized)

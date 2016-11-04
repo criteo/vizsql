@@ -53,6 +53,27 @@ val SAKILA = DB(schemas = List(
 
 VizSQL support several dialects allowing to understand specific SQL syntax or functions for different databases. We started the core one based on the *SQL99* standard. Then we enriched it to create specific dialects for **Vertica** and **Hive**. This is of course a work in progress (even for the SQL99 one).
 
+### In-browser VizSQL
+
+Yes, VizSQL can run in browsers, thanks to Scala.js, the project can be compiled to JavaScript, so that your front-end code can also be equipped with VizSQL.
+
+To compile to JavaScript:
+```sh
+sbt fullOptJS
+```
+
+then `vizsql-opt.js` is generated in the `target` folder
+
+To use the parser in JavaScript:
+```javascript
+const db = VizSQL.Database().from({
+    /* db definitions */
+});
+
+const query = VizSQL.QueryParser().parse("SELECT * FROM a", db);
+```
+
+
 ### License
 
 This project is licensed under the Apache 2.0 license.
