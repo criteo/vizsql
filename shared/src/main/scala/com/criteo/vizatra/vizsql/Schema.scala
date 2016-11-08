@@ -3,13 +3,13 @@ package com.criteo.vizatra.vizsql
 case class Schemas(schemas: List[Schema]) {
   val index = schemas.map(s => (s.name.toLowerCase, s)).toMap
 
-  def getSchema(name: String): Either[String,Schema] = {
+  def getSchema(name: String): Either[String, Schema] = {
     index.get(name.toLowerCase).map(Right.apply _).getOrElse {
       Left(s"""schema not found $name""")
     }
   }
 
-  def getNonAmbiguousTable(name: String): Either[String,(Schema,Table)] = {
+  def getNonAmbiguousTable(name: String): Either[String, (Schema, Table)] = {
     schemas.flatMap(s => s.getTable(name).right.toOption.map(s -> _)) match {
       case Nil => Left(s"table not found $name")
       case table :: Nil => Right(table)
@@ -17,8 +17,8 @@ case class Schemas(schemas: List[Schema]) {
     }
   }
 
-  def getNonAmbiguousColumn(name: String): Either[String,(Schema,Table,Column)] = {
-    schemas.map(s => s.getNonAmbiguousColumn(name).right.map { case (t,c) => (s,t,c) }) match {
+  def getNonAmbiguousColumn(name: String): Either[String, (Schema, Table, Column)] = {
+    schemas.map(s => s.getNonAmbiguousColumn(name).right.map { case (t, c) => (s, t, c) }) match {
       case Right(col) :: Nil => Right(col)
       case Left(err) :: _ => Left(err)
       case _ => Left(s"column not found $name")
@@ -28,7 +28,7 @@ case class Schemas(schemas: List[Schema]) {
 
 case class DB(dialect: Dialect, schemas: Schemas, view: Schemas = Schemas(Nil)) {
 
-  def function(name: String): Either[String,SQLFunction] = {
+  def function(name: String): Either[String, SQLFunction] = {
     dialect.functions.lift(name).map(Right.apply).getOrElse(Left(s"unknown function $name"))
   }
 
@@ -38,6 +38,7 @@ object DB {
   def apply(schemas: List[Schema])(implicit dialect: Dialect): DB = DB(dialect, Schemas(schemas))
 
   import java.sql.{Connection, ResultSet}
+
   def apply(connection: Connection): DB = {
     val databaseMetaData = connection.getMetaData()
 
@@ -52,11 +53,11 @@ object DB {
       case x => sql99.dialect
     }
 
-    def consume(rs: ResultSet): List[Map[String,Any]] = {
+    def consume(rs: ResultSet): List[Map[String, Any]] = {
       import collection.mutable._
-      val data = ListBuffer.empty[Map[String,Any]]
-      while(rs.next()) {
-        val row = HashMap.empty[String,Any]
+      val data = ListBuffer.empty[Map[String, Any]]
+      while (rs.next()) {
+        val row = HashMap.empty[String, Any]
         (1 to rs.getMetaData.getColumnCount).foreach { i =>
           rs.getObject(i).asInstanceOf[Any] match {
             case null =>
@@ -82,15 +83,7 @@ object DB {
                 case "yes" => true
                 case "no" => false
               }
-              typ <- col.get("type_name").map(_.toString.toLowerCase).collect {
-                case "varchar" | "char" | "bpchar" => STRING(nullable)
-                case x if x.contains("varchar") => STRING(nullable)
-                case "int4" | "integer" => INTEGER(nullable)
-                case "float" | "float4" | "numeric" => DECIMAL(nullable)
-                case "timestamp" | "timestamptz" | "timestamp with time zone" => TIMESTAMP(nullable)
-                case "date" => DATE(nullable)
-                case "boolean" => BOOLEAN(nullable)
-              }
+              typ <- col.get("type_name").map(_.toString.toLowerCase).collect(Type.from(nullable))
             } yield (table, Column(name, typ))
           }
           Schema(
@@ -108,13 +101,13 @@ object DB {
 case class Schema(name: String, tables: List[Table]) {
   val index = tables.map(t => (t.name.toLowerCase, t)).toMap
 
-  def getTable(name: String): Either[String,Table] = {
+  def getTable(name: String): Either[String, Table] = {
     index.get(name.toLowerCase).map(Right.apply _).getOrElse {
       Left(s"""table not found ${this.name}.$name""")
     }
   }
 
-  def getNonAmbiguousColumn(name: String): Either[String,(Table,Column)] = {
+  def getNonAmbiguousColumn(name: String): Either[String, (Table, Column)] = {
     tables.flatMap(t => t.getColumn(name).right.toOption.map(t -> _)) match {
       case Nil => Left(s"column not found $name")
       case col :: Nil => Right(col)
@@ -127,7 +120,7 @@ case class Schema(name: String, tables: List[Table]) {
 case class Table(name: String, columns: List[Column]) {
   val index = columns.map(t => (t.name.toLowerCase, t)).toMap
 
-  def getColumn(columnName: String): Either[String,Column] = {
+  def getColumn(columnName: String): Either[String, Column] = {
     index.get(columnName.toLowerCase).map {
       column => Right(column)
     }.getOrElse {
