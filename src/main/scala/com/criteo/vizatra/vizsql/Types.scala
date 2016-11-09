@@ -99,6 +99,9 @@ object Type {
     case STRING(_) => value match {
       case x :: _ => convertParam(pType, x)
       case s: String => StringParameter(s)
+      case n: Number => StringParameter(n.toString)
+      case b: Boolean => StringParameter(b.toString)
+      case c: Char => StringParameter(c.toString)
       case x => throw new MissingParameter(ParameterError(
         s"unexpected value $x (${x.getClass.getName}) for an SQL STRING parameter", -1
       ))
