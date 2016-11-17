@@ -29,7 +29,7 @@ class QueryParserSpec extends FlatSpec with Matchers {
       )
     )
   ))
-  "convert()" should "return a result" in {
+  "parse()" should "return a result" in {
     val result = QueryParser.parse(
       s"""
         |SELECT country, city
@@ -42,7 +42,7 @@ class QueryParserSpec extends FlatSpec with Matchers {
     select.columns.length shouldBe 2
   }
 
-  "convert()" should "handle errors" in {
+  "parse()" should "handle errors" in {
     val result = QueryParser.parse(
       s"""S
       """.stripMargin, db)
@@ -51,5 +51,14 @@ class QueryParserSpec extends FlatSpec with Matchers {
     val error = result.error.get
     error.pos shouldBe 0
     error.msg shouldBe "select expected"
+  }
+  "parse()" should "identify invalid columns" in {
+    val result = QueryParser.parse(
+      s"""
+         |SELECT country1, city
+         |FROM city JOIN country ON city.country_id = country.country_id
+         |WHERE city IN ?{availableCities}
+      """.stripMargin, db)
+    result.error.get.msg shouldBe "column not found country1"
   }
 }

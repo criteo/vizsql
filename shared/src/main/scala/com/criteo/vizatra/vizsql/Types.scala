@@ -149,10 +149,10 @@ object Type {
   }
 
   def from(nullable: Boolean): PartialFunction[String, Type] = {
-    case "varchar" | "char" | "bpchar" => STRING(nullable)
+    case "varchar" | "char" | "bpchar" | "string" => STRING(nullable)
     case x if x.contains("varchar") => STRING(nullable)
     case "int4" | "integer" => INTEGER(nullable)
-    case "float" | "float4" | "numeric" => DECIMAL(nullable)
+    case "float" | "float4" | "numeric" | "decimal" => DECIMAL(nullable)
     case "timestamp" | "timestamptz" | "timestamp with time zone" => TIMESTAMP(nullable)
     case "date" => DATE(nullable)
     case "boolean" => BOOLEAN(nullable)
