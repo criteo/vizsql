@@ -70,10 +70,25 @@ const db = VizSQL.Database().from({
     /* db definitions */
 });
 
-const query = VizSQL.QueryParser().parse("SELECT * FROM a", db);
+const parseResult = db.parse("SELECT * FROM table");
 ```
 
+the parse result contains ```{ error, select }```:
 
+- error (object), null if no error is present
+```
+  {
+    msg: 'err' // message of the error
+    pos: 1 // position of the error
+  }
+```
+- select (object), null if there's an error
+```
+    {
+      columns: [...], // columns in the query
+      tables: [...]   // tables in the query
+    }
+```
 ### License
 
 This project is licensed under the Apache 2.0 license.
