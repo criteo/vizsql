@@ -9,8 +9,21 @@ import scala.scalajs.js.annotation.{JSExport, ScalaJSDefined}
 
 @JSExport("VizSQL.Database")
 object Database {
+  /**
+    * Parses to a VizSQL DB object
+    * @param input a JS object of the database definition
+    * @return DB
+    */
   @JSExport
-  def from(input: Dynamic): DB = DBReader.apply(input)
+  def parse(input: Dynamic): DB = DBReader.apply(input)
+
+  /**
+    * Construct a Database object from the database definition
+    * @param input a JS object of the database definition
+    * @return Database
+    */
+  @JSExport
+  def from(input: Dynamic): Database = new Database(parse(input))
 }
 
 @ScalaJSDefined
