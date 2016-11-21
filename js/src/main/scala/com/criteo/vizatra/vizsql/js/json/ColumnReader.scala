@@ -1,12 +1,13 @@
 package com.criteo.vizatra.vizsql.js.json
 
 import com.criteo.vizatra.vizsql._
-import com.criteo.vizatra.vizsql.hive.{HiveArray, HiveStruct}
+import com.criteo.vizatra.vizsql.hive.TypeParser
 
-import scala.scalajs.js.UndefOr
-import scala.scalajs.js.Dynamic
+import scala.scalajs.js.{Dynamic, UndefOr}
 
 object ColumnReader extends Reader[Column] {
+  lazy val hiveTypeParser = new TypeParser
+
   override def apply(dyn: Dynamic): Column = {
     val name = dyn.name.asInstanceOf[String]
     val nullable = dyn.nullable.asInstanceOf[UndefOr[Boolean]].getOrElse(false)
@@ -14,18 +15,10 @@ object ColumnReader extends Reader[Column] {
     Column(name, typ)
   }
 
-  def parseType(input: String, nullable: Boolean): Type = Type.from(nullable).applyOrElse(input, (rest: String) => rest match {
-    case arrayPattern(t) => HiveArray(parseType(t, nullable))
-    case structPattern(cols) => HiveStruct(parseStructCols(cols))
-    case _ => throw new Exception(s"invalid type $input")
-  })
-
-  def parseStructCols(input: String): List[Column] =
-    input.split(",").map {
-      case structColPattern(name, colType) => Column(name, parseType(colType, true))
-    }.toList
-
-  private val arrayPattern = """array<(.*)>""".r
-  private val structPattern = """struct<(.*)>""".r
-  private val structColPattern = """^([^:]+):([^:]+)$""".r
+  def parseType(input: String, nullable: Boolean): Type = Type.from(nullable).applyOrElse(input, (rest: String) =>
+    hiveTypeParser.parseType(rest) match {
+      case Left(err) => throw new IllegalArgumentException(err)
+      case Right(t) => t
+    }
+  )
 }
