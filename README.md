@@ -62,11 +62,12 @@ To compile to JavaScript:
 sbt fullOptJS
 ```
 
-then `vizsql-opt.js` is generated in the `target` folder
+then `vizsql-opt.js` is generated in the `target` folder, it's packed as a CommonJS (node.js) module
 
-To use the parser in JavaScript:
+To use VizSQL:
 ```javascript
-const db = VizSQL.Database().from({
+const Database = require('vizsql').Database;
+const db = Database().from({
     /* db definitions */
 });
 
@@ -76,18 +77,18 @@ const parseResult = db.parse("SELECT * FROM table");
 the parse result contains ```{ error, select }```:
 
 - error (object), null if no error is present
-```
+```javascript
   {
     msg: 'err' // message of the error
     pos: 1 // position of the error
   }
 ```
 - select (object), null if there's an error
-```
-    {
-      columns: [...], // columns in the query
-      tables: [...]   // tables in the query
-    }
+```javascript
+  {
+    columns: [...], // columns in the query
+    tables: [...]   // tables in the query
+  }
 ```
 ### License
 

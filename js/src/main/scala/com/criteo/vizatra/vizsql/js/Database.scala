@@ -7,7 +7,7 @@ import scala.scalajs.js.Dynamic
 import scala.scalajs.js
 import scala.scalajs.js.annotation.{JSExport, ScalaJSDefined}
 
-@JSExport("VizSQL.Database")
+@JSExport("Database")
 object Database {
   /**
     * Parses to a VizSQL DB object

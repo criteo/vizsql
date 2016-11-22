@@ -6,7 +6,7 @@ import com.criteo.vizatra.vizsql.{DB, Query, VizSQL}
 import scala.scalajs.js.JSConverters._
 import scala.scalajs.js.annotation.JSExport
 
-@JSExport("VizSQL.QueryParser")
+@JSExport("QueryParser")
 object QueryParser {
   @JSExport
   def parse(query: String, db: DB): ParseResult =

@@ -20,7 +20,8 @@ lazy val vizsql = crossProject.in(file("."))
     libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4"
   )
   .jsSettings(
-    libraryDependencies += "org.scala-js" %%% "scala-parser-combinators" % "1.0.2"
+    libraryDependencies += "org.scala-js" %%% "scala-parser-combinators" % "1.0.2",
+    scalaJSModuleKind := ModuleKind.CommonJSModule
   )
 
 lazy val vizsqlJVM = vizsql.jvm
