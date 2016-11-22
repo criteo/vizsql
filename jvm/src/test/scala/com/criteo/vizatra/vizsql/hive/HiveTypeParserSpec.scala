@@ -19,7 +19,10 @@ class HiveTypeParserSpec extends PropSpec with Matchers {
       Column("foo", HiveArray(HiveMap(STRING(true), STRING(true)))),
       Column("bar", HiveArray(INTEGER(true))),
       Column("baz", DECIMAL(true))
-    ))))
+    )))),
+    ("struct<timestamp:integer>", HiveStruct(List(
+      Column("timestamp", INTEGER(true))
+    )))
   )
 
   // --

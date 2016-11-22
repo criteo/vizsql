@@ -17,7 +17,7 @@ class TypeParser extends TokenParsers with PackratParsers {
     case class Symbol(chars: String) extends Token
 
     val keywords = Set(
-      "array", "map", "struct", "tinyint", "smallint", "int", "bigint",
+      "array", "map", "struct", "tinyint", "smallint", "int", "bigint", "integer",
       "double", "float", "decimal", "string", "binary", "boolean", "timestamp"
     )
     val symbols = Set(",", ":", "<", ">")
@@ -45,7 +45,7 @@ class TypeParser extends TokenParsers with PackratParsers {
     else sys.error("Invalid parser definition")
   )
 
-  lazy val name = elem("column name", _.isInstanceOf[lexical.ColumnName]) ^^ (_.chars)
+  lazy val name = elem("column name", token => token.isInstanceOf[lexical.ColumnName] || token.isInstanceOf[lexical.Keyword]) ^^ (_.chars)
 
   lazy val array = "array" ~ "<" ~> anyType <~ ">" ^^ { case el => HiveArray(el) }
 
@@ -58,7 +58,7 @@ class TypeParser extends TokenParsers with PackratParsers {
   lazy val structFields = rep1sep(name ~ (":" ~> anyType), ",")
 
   lazy val simpleType: Parser[Type] =
-    ( ("tinyint" | "smallint" | "int" | "bigint") ^^^ INTEGER(true)
+    ( ("tinyint" | "smallint" | "int" | "bigint" | "integer") ^^^ INTEGER(true)
     | ("double" | "float" | "decimal") ^^^ DECIMAL(true)
     | ("string" | "binary") ^^^ STRING(true)
     | "boolean" ^^^ BOOLEAN(true)
