@@ -1,5 +1,7 @@
 # VizSQL
 
+[![Build Status](https://travis-ci.org/criteo/vizsql.svg?branch=master)](https://travis-ci.org/criteo/vizsql)
+
 ## VizSQL is a SQL parser & typer for scala
 
 VizSQL provides support for parsing SQL statements into a scala AST. This AST can then be used to support many interesting transformations. We provide for example a static optimizer and an OLAP query rewriter. It also support typing the query to retrieve the resultset columns returned by a SQL statement.
@@ -53,6 +55,43 @@ val SAKILA = DB(schemas = List(
 
 VizSQL support several dialects allowing to understand specific SQL syntax or functions for different databases. We started the core one based on the *SQL99* standard. Then we enriched it to create specific dialects for **Vertica** and **Hive**. This is of course a work in progress (even for the SQL99 one).
 
+### In-browser VizSQL
+
+Yes, VizSQL can run in browsers, thanks to Scala.js, the project can be compiled to JavaScript, so that your front-end code can also be equipped with VizSQL.
+
+To compile to JavaScript:
+```sh
+sbt fullOptJS
+```
+
+then `vizsql-opt.js` is generated in the `target` folder, it's packed as a CommonJS (node.js) module
+
+To use VizSQL:
+```javascript
+const Database = require('vizsql').Database;
+const db = Database().from({
+    /* db definitions */
+});
+
+const parseResult = db.parse("SELECT * FROM table");
+```
+
+the parse result contains ```{ error, select }```:
+
+- error (object), null if no error is present
+```javascript
+  {
+    msg: 'err' // message of the error
+    pos: 1 // position of the error
+  }
+```
+- select (object), null if there's an error
+```javascript
+  {
+    columns: [...], // columns in the query
+    tables: [...]   // tables in the query
+  }
+```
 ### License
 
 This project is licensed under the Apache 2.0 license.

@@ -24,4 +24,5 @@ dependency-reduced-pom.xml
 .devsettings
 effective-pom.xml
 drivers/
-project/
+project/*
+!project/plugins.sbt
