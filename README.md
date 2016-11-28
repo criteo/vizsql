@@ -1,5 +1,7 @@
 # VizSQL
 
+[![Build Status](https://travis-ci.org/criteo/vizsql.svg?branch=master)](https://travis-ci.org/criteo/vizsql)
+
 ## VizSQL is a SQL parser & typer for scala
 
 VizSQL provides support for parsing SQL statements into a scala AST. This AST can then be used to support many interesting transformations. We provide for example a static optimizer and an OLAP query rewriter. It also support typing the query to retrieve the resultset columns returned by a SQL statement.
