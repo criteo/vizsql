@@ -1,3 +1,10 @@
 language: scala
 scala:
-  - 2.11.8
+- 2.11.8
+env:
+  global:
+    secure: IpQPAMFrafCkbzq+/RgHbv7kaTS7yViw4ce6yTNKmdgQeVHBPeRjaKteyuGmaFyOMIvHCsABtk3QWKfOlxyuzv/ZMlfTy69TnoDa62jAFIJLhZ6pqiGswtXwso7EFW6NgBQJi1AEV9mtC0VOH6YklbUSsnZsI1saB2JHD9h9fafOoiH8ifDDGh+vrIiozrr4YjuT/5/fV90rt+Bha5nOVqVmxmUP9Fpmh0ca3hY0Nw/KhtzxP+VAnQd4MaP0CU8b8+H/IVBUnVBB3xj8pPKs+t/di4NBDfDb6IYmGBtHviJxoDxnJwfRlT8I6o/e2EMNs7wQHke29VsI9Vl+BK6oug0JDugTCgocNrvjqsFDu1nInP3D0yMJRsFBIJ+BhmRw5fEi85KMlu+InfQTRq+FzqMHcIuQMYNlCDgIsQK4an3rUmJ8yJ6nX2qTwZjw8kRTVoszlmZpJ6h1pjG95jHq42JObnPge+oJyl4sO4ngClxEiHr1YQBsDuJfgPl2skXn1p3AGnK6AYn8I+NdK0mtBnJCrlonpxYz3i5zL2mUnDTV19dMxAKXljQRckllVO+JDKZiBl8s+GDp/JT5tIKGozp4phRRUlXRW1RROLHU7qvO1SEvC8ERUQS9K0V/QxCPK9L12IkJYUi37aaN/Qw51MLScxwEniAjoOuCaYpxj4c=
+before_deploy:
+- openssl aes-256-cbc -K $encrypted_12ac5f6463c4_key -iv $encrypted_12ac5f6463c4_iv
+  -in .travis/keys.tar.enc -out .travis/keys.tar -d
+- tar xvf .travis/keys.tar
