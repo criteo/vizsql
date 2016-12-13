@@ -1,10 +1,30 @@
 # VizSQL
 
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Build Status](https://travis-ci.org/criteo/vizsql.svg?branch=master)](https://travis-ci.org/criteo/vizsql)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.criteo/vizsql_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.criteo/vizsql_2.11)
 
 ## VizSQL is a SQL parser & typer for scala
 
 VizSQL provides support for parsing SQL statements into a scala AST. This AST can then be used to support many interesting transformations. We provide for example a static optimizer and an OLAP query rewriter. It also support typing the query to retrieve the resultset columns returned by a SQL statement.
+
+### Installation
+
+#### SBT
+
+```scala
+libraryDependencies += "com.criteo" % "vizsql_2.11" % "{latestVersion}"
+```
+
+#### Maven
+
+```xml
+<dependency>
+  <groupId>com.criteo</groupId>
+  <artifactId>vizsql_2.11</artifactId>
+  <version>{latestVersion}</version>
+</dependency>
+```
 
 ### tl;dr
 
@@ -92,6 +112,7 @@ the parse result contains ```{ error, select }```:
     tables: [...]   // tables in the query
   }
 ```
+
 ### License
 
 This project is licensed under the Apache 2.0 license.
